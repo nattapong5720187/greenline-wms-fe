@@ -44,6 +44,14 @@ const routes = [
       { path: 'stock/transfer', name: 'StockTransfer', component: () => import('@/views/stock/StockTransferView.vue') },
       { path: 'stock/min-stock', name: 'MinStock', component: () => import('@/views/stock/MinStockView.vue') },
 
+      // Production
+      { path: 'production/formulas', name: 'FormulaList', component: () => import('@/views/production/FormulaListView.vue') },
+      { path: 'production/formulas/create', name: 'FormulaCreate', component: () => import('@/views/production/FormulaFormView.vue') },
+      { path: 'production/formulas/:id/edit', name: 'FormulaEdit', component: () => import('@/views/production/FormulaFormView.vue') },
+      { path: 'production/orders', name: 'ProductionOrders', component: () => import('@/views/production/ProductionOrderView.vue') },
+      { path: 'production/process/:id', name: 'ProductionProcess', component: () => import('@/views/production/ProductionProcessView.vue') },
+      { path: 'production/report', name: 'ProductionReport', component: () => import('@/views/production/ProductionReportView.vue') },
+
       // Alerts
       { path: 'notifications', name: 'Notifications', component: () => import('@/views/NotificationCenterView.vue') },
     ]
