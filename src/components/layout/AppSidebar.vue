@@ -91,6 +91,14 @@ const navGroups = computed(() => [
     ]
   },
   {
+    label: 'Production',
+    items: [
+      { display: true, to: '/production/formulas', icon: 'pi pi-book',       label: 'สูตร / BOM' },
+      { display: true, to: '/production/orders',   icon: 'pi pi-list-check', label: 'ใบสั่งผลิต' },
+      { display: true, to: '/production/report',   icon: 'pi pi-chart-bar',  label: 'รายงานการผลิต' },
+    ]
+  },
+  {
     label: 'ระบบ',
     items: [
       { display: true,  to: '/admin/users',                  icon: 'pi pi-users',                 label: 'ผู้ใช้ & สิทธิ์' },

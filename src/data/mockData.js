@@ -195,3 +195,104 @@ export const NOTIFICATIONS = [
   { id: 'N004', type: 'min_stock', productId: 'P005', warehouseId: 'WH01', message: 'สต๊อก Premix B ต่ำกว่าขั้นต่ำ (30 < 50 kg)', createdAt: '2024-06-04T06:00:00', read: false },
   { id: 'N005', type: 'hold',      productId: 'P016', warehouseId: 'WH02', message: 'สินค้าถูก Hold: ซอสมะเขือเทศ (Semi) LOT-2024-0601-003', createdAt: '2024-06-01T12:05:00', read: true  },
 ]
+
+// ===== Phase 2: Production & Formula =====
+
+export const FORMULAS = [
+  {
+    id: 'FML001', code: 'FML-001', name: 'ไก่กระป๋องในซอสมะเขือเทศ', machineType: 'sauce',
+    semiProductId: 'P016', outputProductId: 'P017',
+    outputQtyPerBatch: 1000, outputUnit: 'pcs',
+    ingredients: [
+      { productId: 'P001', qtyPerBatch: 80,  unitId: 'U01' },
+      { productId: 'P004', qtyPerBatch: 15,  unitId: 'U01' },
+      { productId: 'P006', qtyPerBatch: 500, unitId: 'U02' },
+      { productId: 'P007', qtyPerBatch: 200, unitId: 'U02' },
+    ],
+    labelName: 'ไก่กระป๋องในซอสมะเขือเทศ 300g', labelWeight: 300, labelWeightUnit: 'g',
+    active: true, createdAt: '2024-06-01T00:00:00',
+  },
+  {
+    id: 'FML002', code: 'FML-002', name: 'หมูสับผสมแครอท', machineType: 'meat',
+    semiProductId: null, outputProductId: null,
+    outputQtyPerBatch: 800, outputUnit: 'kg',
+    ingredients: [
+      { productId: 'P002', qtyPerBatch: 60,  unitId: 'U01' },
+      { productId: 'P003', qtyPerBatch: 20,  unitId: 'U01' },
+      { productId: 'P020', qtyPerBatch: 300, unitId: 'U02' },
+      { productId: 'P019', qtyPerBatch: 5,   unitId: 'U01' },
+    ],
+    labelName: 'หมูสับผสมแครอท 500g', labelWeight: 500, labelWeightUnit: 'g',
+    active: true, createdAt: '2024-06-02T00:00:00',
+  },
+  {
+    id: 'FML003', code: 'FML-003', name: 'ไก่ผสมเครื่องเทศ', machineType: 'meat',
+    semiProductId: null, outputProductId: null,
+    outputQtyPerBatch: 1200, outputUnit: 'pcs',
+    ingredients: [
+      { productId: 'P001', qtyPerBatch: 90,  unitId: 'U01' },
+      { productId: 'P018', qtyPerBatch: 10,  unitId: 'U01' },
+      { productId: 'P019', qtyPerBatch: 3,   unitId: 'U01' },
+      { productId: 'P006', qtyPerBatch: 200, unitId: 'U02' },
+    ],
+    labelName: 'ไก่ผสมเครื่องเทศ 250g', labelWeight: 250, labelWeightUnit: 'g',
+    active: true, createdAt: '2024-06-03T00:00:00',
+  },
+]
+
+let _poCounter = 3
+export const generatePONo = () => {
+  const today = new Date()
+  const yy = String(today.getFullYear()).slice(2)
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  _poCounter++
+  return `PO-${yy}${mm}${dd}-${String(_poCounter).padStart(3, '0')}`
+}
+
+export const PRODUCTION_ORDERS = [
+  {
+    id: 'PO001', docNo: 'PO-240603-001', formulaId: 'FML001', plannedBatches: 3,
+    status: 'done',
+    ingredients: [
+      { productId: 'P001', qtyRequired: 240, lotAssignments: [{ lotId: 'LOT001', lotNo: 'LOT-2024-0601-001', qty: 240 }] },
+      { productId: 'P004', qtyRequired: 45,  lotAssignments: [{ lotId: 'LOT004', lotNo: 'LOT-2024-0603-001', qty: 45  }] },
+      { productId: 'P006', qtyRequired: 1500,lotAssignments: [{ lotId: 'LOT005', lotNo: 'LOT-2024-0603-002', qty: 1500 }] },
+      { productId: 'P007', qtyRequired: 600, lotAssignments: [] },
+    ],
+    semiLot: { lotNo: 'SEMI-20240603-001', productId: 'P016', qty: 3000, warehouseId: 'WH02' },
+    fgLot:   { lotNo: 'FG-20240603-001',   productId: 'P017', qty: 3000, warehouseId: 'WH02' },
+    actualOutput: 3000,
+    createdAt: '2024-06-03T08:00:00', confirmedAt: '2024-06-03T08:30:00',
+    mixedAt: '2024-06-03T10:00:00', packedAt: '2024-06-03T14:00:00', completedAt: '2024-06-03T15:00:00',
+    createdBy: 'USR001',
+  },
+  {
+    id: 'PO002', docNo: 'PO-240605-001', formulaId: 'FML002', plannedBatches: 2,
+    status: 'mixing',
+    ingredients: [
+      { productId: 'P002', qtyRequired: 120, lotAssignments: [{ lotId: 'LOT003', lotNo: 'LOT-2024-0601-002', qty: 120 }] },
+      { productId: 'P003', qtyRequired: 40,  lotAssignments: [{ lotId: 'LOT006', lotNo: 'LOT-2024-0602-001', qty: 40  }] },
+      { productId: 'P020', qtyRequired: 600, lotAssignments: [] },
+      { productId: 'P019', qtyRequired: 10,  lotAssignments: [] },
+    ],
+    semiLot: null, fgLot: null, actualOutput: null,
+    createdAt: '2024-06-05T09:00:00', confirmedAt: '2024-06-05T09:30:00',
+    mixedAt: null, packedAt: null, completedAt: null,
+    createdBy: 'USR002',
+  },
+  {
+    id: 'PO003', docNo: 'PO-240606-001', formulaId: 'FML001', plannedBatches: 5,
+    status: 'confirmed',
+    ingredients: [
+      { productId: 'P001', qtyRequired: 400, lotAssignments: [{ lotId: 'LOT002', lotNo: 'LOT-2024-0605-001', qty: 400 }] },
+      { productId: 'P004', qtyRequired: 75,  lotAssignments: [{ lotId: 'LOT004', lotNo: 'LOT-2024-0603-001', qty: 75  }] },
+      { productId: 'P006', qtyRequired: 2500,lotAssignments: [{ lotId: 'LOT005', lotNo: 'LOT-2024-0603-002', qty: 2500 }] },
+      { productId: 'P007', qtyRequired: 1000,lotAssignments: [] },
+    ],
+    semiLot: null, fgLot: null, actualOutput: null,
+    createdAt: '2024-06-06T08:00:00', confirmedAt: '2024-06-06T08:30:00',
+    mixedAt: null, packedAt: null, completedAt: null,
+    createdBy: 'USR001',
+  },
+]
