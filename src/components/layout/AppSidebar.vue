@@ -16,10 +16,10 @@
 
     <!-- Nav -->
     <nav class="sidebar-nav">
-      <div v-for="group in navGroups" :key="group.label" class="nav-group">
+      <div v-for="group in visibleGroups" :key="group.label" class="nav-group">
         <div v-if="!collapsed" class="nav-group-label">{{ group.label }}</div>
         <RouterLink
-          v-for="item in group.items"
+          v-for="item in group.visibleItems"
           :key="item.to"
           :to="item.to"
           class="nav-item"
@@ -57,47 +57,53 @@ const navGroups = computed(() => [
   {
     label: 'ภาพรวม',
     items: [
-      { to: '/dashboard', icon: 'pi pi-home', label: 'แดชบอร์ด' },
+      { display: true,  to: '/dashboard',                    icon: 'pi pi-home',                  label: 'แดชบอร์ด' },
     ]
   },
   {
     label: 'Master Data',
     items: [
-      { to: '/master/products',   icon: 'pi pi-box',       label: 'สินค้า / SKU' },
-      { to: '/master/categories', icon: 'pi pi-tags',      label: 'ประเภทสินค้า' },
-      { to: '/master/units',      icon: 'pi pi-calculator',label: 'หน่วยนับ' },
-      { to: '/master/warehouses', icon: 'pi pi-building',  label: 'คลังสินค้า' },
-      { to: '/master/suppliers',  icon: 'pi pi-truck',     label: 'ซัพพลายเออร์' },
+      { display: true,  to: '/master/products',              icon: 'pi pi-box',                   label: 'สินค้า / SKU' },
+      { display: true,  to: '/master/categories',            icon: 'pi pi-tags',                  label: 'ประเภทสินค้า' },
+      { display: true,  to: '/master/units',                 icon: 'pi pi-calculator',            label: 'หน่วยนับ' },
+      { display: true,  to: '/master/warehouses',            icon: 'pi pi-building',              label: 'คลังสินค้า' },
+      { display: false, to: '/master/suppliers',             icon: 'pi pi-truck',                 label: 'ซัพพลายเออร์' },
     ]
   },
   {
     label: 'เอกสาร',
     items: [
-      { to: '/documents',                 icon: 'pi pi-file',       label: 'รายการเอกสาร' },
-      { to: '/documents/receipt/create',  icon: 'pi pi-download',   label: 'รับเข้า (GR)' },
-      { to: '/documents/requisition/create', icon: 'pi pi-upload',  label: 'เบิก-จ่าย (RQ)' },
-      { to: '/documents/return/create',   icon: 'pi pi-reply',      label: 'คืนสินค้า (RT)' },
+      { display: false, to: '/documents',                    icon: 'pi pi-file',                  label: 'รายการเอกสาร' },
+      { display: false, to: '/documents/receipt/create',     icon: 'pi pi-download',              label: 'รับเข้า (GR)' },
+      { display: false, to: '/documents/requisition/create', icon: 'pi pi-upload',                label: 'เบิก-จ่าย (RQ)' },
+      { display: false, to: '/documents/return/create',      icon: 'pi pi-reply',                 label: 'คืนสินค้า (RT)' },
     ]
   },
   {
     label: 'สต๊อก',
     items: [
-      { to: '/stock/by-warehouse', icon: 'pi pi-warehouse', label: 'สต๊อกแยกคลัง' },
-      { to: '/stock/lots',         icon: 'pi pi-list',      label: 'Lot Tracking' },
-      { to: '/stock/hold',         icon: 'pi pi-lock',      label: 'Hold' },
-      { to: '/stock/reprocess',    icon: 'pi pi-sync',      label: 'Reprocess' },
-      { to: '/stock/transfer',     icon: 'pi pi-arrows-h',  label: 'ย้ายสต๊อก' },
-      { to: '/stock/min-stock',    icon: 'pi pi-exclamation-triangle', label: 'ตั้ง Min Stock' },
+      { display: false, to: '/stock/by-warehouse',           icon: 'pi pi-warehouse',             label: 'สต๊อกแยกคลัง' },
+      { display: false, to: '/stock/lots',                   icon: 'pi pi-list',                  label: 'Lot Tracking' },
+      { display: false, to: '/stock/hold',                   icon: 'pi pi-lock',                  label: 'Hold' },
+      { display: false, to: '/stock/reprocess',              icon: 'pi pi-sync',                  label: 'Reprocess' },
+      { display: false, to: '/stock/transfer',               icon: 'pi pi-arrows-h',              label: 'ย้ายสต๊อก' },
+      { display: false, to: '/stock/min-stock',              icon: 'pi pi-exclamation-triangle',  label: 'ตั้ง Min Stock' },
     ]
   },
   {
     label: 'ระบบ',
     items: [
-      { to: '/admin/users',    icon: 'pi pi-users',  label: 'ผู้ใช้ & สิทธิ์' },
-      { to: '/notifications',  icon: 'pi pi-bell',   label: 'การแจ้งเตือน', badge: notifStore.unreadCount || null },
+      { display: true,  to: '/admin/users',                  icon: 'pi pi-users',                 label: 'ผู้ใช้ & สิทธิ์' },
+      { display: false, to: '/notifications',                icon: 'pi pi-bell',                  label: 'การแจ้งเตือน', badge: notifStore.unreadCount || null },
     ]
   }
 ])
+
+const visibleGroups = computed(() =>
+  navGroups.value
+    .map(g => ({ ...g, visibleItems: g.items.filter(i => i.display) }))
+    .filter(g => g.visibleItems.length > 0)
+)
 
 function isActive(item) {
   if (item.to === '/dashboard') return route.path === '/dashboard'
