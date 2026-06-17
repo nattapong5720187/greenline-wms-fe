@@ -64,15 +64,54 @@
       </div>
     </div>
 
-    <!-- BOM -->
+    <!-- BOM: Premix -->
     <div class="page-card" style="margin-top:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-        <div class="section-title" style="margin-bottom:0">ส่วนผสม (BOM) — {{ form.ingredients.length }} รายการ</div>
-        <Button label="+ เพิ่มส่วนผสม" icon="pi pi-plus" size="small" outlined @click="addIngredient" />
+      <div class="bom-section-head">
+        <div class="section-title" style="margin-bottom:0">
+          <i class="pi pi-bolt ic-premix" /> Premix — {{ premixRows.length }} รายการ
+        </div>
+        <Button label="+ เพิ่ม Premix" icon="pi pi-plus" size="small" outlined @click="addPremix" />
       </div>
 
-      <div v-if="form.ingredients.length === 0" class="empty-bom">
-        ยังไม่มีส่วนผสม — กดปุ่ม "+ เพิ่มส่วนผสม" เพื่อเริ่มต้น
+      <div v-if="premixRows.length === 0" class="empty-bom">
+        ยังไม่มี Premix — กดปุ่ม "+ เพิ่ม Premix" เพื่อเริ่มต้น
+      </div>
+      <div v-else>
+        <div class="bom-header">
+          <div style="flex:2">Premix</div>
+          <div style="width:140px; text-align:right;">ปริมาณ / Batch</div>
+          <div style="width:120px; padding-left:12px;">หน่วย</div>
+          <div style="width:48px;"></div>
+        </div>
+        <div v-for="(ing, idx) in premixRows" :key="'pm'+idx" class="bom-row">
+          <div style="flex:2">
+            <Dropdown v-model="ing.productId" :options="premixOptions" optionLabel="label" optionValue="value"
+              filter placeholder="เลือก Premix..." style="width:100%;" />
+          </div>
+          <div style="width:140px;">
+            <InputNumber v-model="ing.qtyPerBatch" :min="0" :minFractionDigits="0" :maxFractionDigits="3" style="width:100%;" />
+          </div>
+          <div style="width:120px; padding-left:12px;">
+            <Dropdown v-model="ing.unitId" :options="unitOptions" optionLabel="abbr" optionValue="id" style="width:100%;" />
+          </div>
+          <div style="width:48px; text-align:center;">
+            <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="removePremix(idx)" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOM: Ingredient -->
+    <div class="page-card" style="margin-top:16px;">
+      <div class="bom-section-head">
+        <div class="section-title" style="margin-bottom:0">
+          <i class="pi pi-box ic-ingredient" /> ส่วนผสม / วัตถุดิบ — {{ ingredientRows.length }} รายการ
+        </div>
+        <Button label="+ เพิ่มวัตถุดิบ" icon="pi pi-plus" size="small" outlined @click="addIngredient" />
+      </div>
+
+      <div v-if="ingredientRows.length === 0" class="empty-bom">
+        ยังไม่มีวัตถุดิบ — กดปุ่ม "+ เพิ่มวัตถุดิบ" เพื่อเริ่มต้น
       </div>
       <div v-else>
         <div class="bom-header">
@@ -81,9 +120,9 @@
           <div style="width:120px; padding-left:12px;">หน่วย</div>
           <div style="width:48px;"></div>
         </div>
-        <div v-for="(ing, idx) in form.ingredients" :key="idx" class="bom-row">
+        <div v-for="(ing, idx) in ingredientRows" :key="'ing'+idx" class="bom-row">
           <div style="flex:2">
-            <Dropdown v-model="ing.productId" :options="productOptions" optionLabel="label" optionValue="value"
+            <Dropdown v-model="ing.productId" :options="ingredientOptions" optionLabel="label" optionValue="value"
               filter placeholder="เลือกสินค้า..." style="width:100%;" />
           </div>
           <div style="width:140px;">
@@ -133,23 +172,48 @@ const outputUnitOptions = [
   { label: 'box (กล่อง)', value: 'box' },
 ]
 
-const productOptions = computed(() =>
-  masterStore.products.map(p => ({ label: `${p.code} — ${p.name}`, value: p.id }))
+const premixRows = ref([])
+const ingredientRows = ref([])
+
+function isPremix(productId) {
+  return masterStore.getProductById(productId)?.categoryId === 'CAT11'
+}
+
+const premixOptions = computed(() =>
+  masterStore.products
+    .filter(p => p.categoryId === 'CAT11')
+    .map(p => ({ label: `${p.code} — ${p.name}`, value: p.id }))
+)
+const ingredientOptions = computed(() =>
+  masterStore.products
+    .filter(p => p.categoryId !== 'CAT11')
+    .map(p => ({ label: `${p.code} — ${p.name}`, value: p.id }))
 )
 const unitOptions = computed(() => masterStore.units)
 
 onMounted(() => {
   if (isEdit.value) {
     const f = productionStore.getFormulaById(route.params.id)
-    if (f) form.value = { ...f, ingredients: f.ingredients.map(i => ({ ...i })) }
+    if (f) {
+      form.value = { ...f }
+      const ings = (f.ingredients || []).map(i => ({ ...i }))
+      premixRows.value = ings.filter(i => isPremix(i.productId))
+      ingredientRows.value = ings.filter(i => !isPremix(i.productId))
+    }
   }
 })
 
+function addPremix() {
+  premixRows.value.push({ productId: null, qtyPerBatch: 0, unitId: 'U01' })
+}
+function removePremix(idx) {
+  premixRows.value.splice(idx, 1)
+}
 function addIngredient() {
-  form.value.ingredients.push({ productId: null, qtyPerBatch: 0, unitId: 'U01' })
+  ingredientRows.value.push({ productId: null, qtyPerBatch: 0, unitId: 'U01' })
 }
 function removeIngredient(idx) {
-  form.value.ingredients.splice(idx, 1)
+  ingredientRows.value.splice(idx, 1)
 }
 
 function save() {
@@ -157,9 +221,11 @@ function save() {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกข้อมูลให้ครบ', detail: 'รหัสและชื่อสูตรจำเป็น', life: 3000 })
     return
   }
+  const ingredients = [...premixRows.value, ...ingredientRows.value]
+    .filter(i => i.productId && i.qtyPerBatch > 0)
   const payload = {
     ...form.value,
-    ingredients: form.value.ingredients.filter(i => i.productId && i.qtyPerBatch > 0),
+    ingredients,
   }
   if (isEdit.value) {
     productionStore.updateFormula(route.params.id, payload)
@@ -179,6 +245,10 @@ function save() {
 .form-field { display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .form-field label { font-size: 13px; font-weight: 500; color: #374151; }
 .req { color: var(--gl-red); }
+.bom-section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.bom-section-head .section-title { display: flex; align-items: center; gap: 8px; }
+.ic-premix { color: #f59e0b; }
+.ic-ingredient { color: #84cc16; }
 .bom-header {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 12px; background: #1e2a3b; border-radius: 8px;

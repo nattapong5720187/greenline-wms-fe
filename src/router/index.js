@@ -50,6 +50,8 @@ const routes = [
       { path: 'production/formulas/:id/edit', name: 'FormulaEdit', component: () => import('@/views/production/FormulaFormView.vue') },
       { path: 'production/orders', name: 'ProductionOrders', component: () => import('@/views/production/ProductionOrderView.vue') },
       { path: 'production/process/:id', name: 'ProductionProcess', component: () => import('@/views/production/ProductionProcessView.vue') },
+      { path: 'production/packing', name: 'PackingList', component: () => import('@/views/production/PackingListView.vue') },
+      { path: 'production/packing/create', name: 'PackingCreate', component: () => import('@/views/production/PackingFormView.vue') },
       { path: 'production/report', name: 'ProductionReport', component: () => import('@/views/production/ProductionReportView.vue') },
 
       // Alerts

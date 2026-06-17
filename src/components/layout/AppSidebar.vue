@@ -95,7 +95,8 @@ const navGroups = computed(() => [
     items: [
       { display: true, to: '/production/formulas', icon: 'pi pi-book',       label: 'สูตร / BOM' },
       { display: true, to: '/production/orders',   icon: 'pi pi-list-check', label: 'ใบสั่งผลิต' },
-      { display: true, to: '/production/report',   icon: 'pi pi-chart-bar',  label: 'รายงานการผลิต' },
+      { display: true, to: '/production/packing',  icon: 'pi pi-box',        label: 'แพ็ค' },
+      { display: false, to: '/production/report',   icon: 'pi pi-chart-bar',  label: 'รายงานการผลิต' },
     ]
   },
   {

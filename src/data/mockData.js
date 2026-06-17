@@ -62,6 +62,8 @@ export const PRODUCTS = [
   { id: 'P018', code: 'RM-004',  name: 'หัวหอมใหญ่',             categoryId: 'CAT01', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 100,  requireLot: true,  hasExpiry: true,  active: true },
   { id: 'P019', code: 'RM-005',  name: 'กระเทียม',               categoryId: 'CAT01', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 80,   requireLot: true,  hasExpiry: true,  active: true },
   { id: 'P020', code: 'RM-006',  name: 'พริกไทย',                categoryId: 'CAT01', unitId: 'U02', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 5000, requireLot: true,  hasExpiry: true,  active: true },
+  { id: 'P021', code: 'SEMI-002',name: 'ไก่ปรุงรส (Semi)',        categoryId: 'CAT01', unitId: 'U05', stockStatus: 'Semi',      warehouseId: 'WH02', minStock: 300,  requireLot: true,  hasExpiry: true,  active: true },
+  { id: 'P022', code: 'SEMI-003',name: 'หมูสับผสมแครอท (Semi)',    categoryId: 'CAT01', unitId: 'U05', stockStatus: 'Semi',      warehouseId: 'WH02', minStock: 200,  requireLot: true,  hasExpiry: true,  active: true },
 ]
 
 export const LOTS = [
@@ -96,6 +98,8 @@ export const STOCK = [
   { id: 'S018', productId: 'P018', warehouseId: 'WH01', qty: 55,   stockStatus: 'RM'   },
   { id: 'S019', productId: 'P019', warehouseId: 'WH01', qty: 40,   stockStatus: 'RM'   },
   { id: 'S020', productId: 'P020', warehouseId: 'WH01', qty: 3800, stockStatus: 'RM'   },
+  { id: 'S021', productId: 'P021', warehouseId: 'WH02', qty: 1500, stockStatus: 'Semi' },
+  { id: 'S022', productId: 'P022', warehouseId: 'WH02', qty: 800,  stockStatus: 'Semi' },
 ]
 
 export const USERS = [
@@ -294,5 +298,31 @@ export const PRODUCTION_ORDERS = [
     createdAt: '2024-06-06T08:00:00', confirmedAt: '2024-06-06T08:30:00',
     mixedAt: null, packedAt: null, completedAt: null,
     createdBy: 'USR001',
+  },
+]
+
+// ===== Packing (แพ็ค): Semi → FG + Rejected =====
+let _pkCounter = 2
+export const generatePackNo = () => {
+  const today = new Date()
+  const yy = String(today.getFullYear()).slice(2)
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  _pkCounter++
+  return `PK-${yy}${mm}${dd}-${String(_pkCounter).padStart(3, '0')}`
+}
+
+export const PACKINGS = [
+  {
+    id: 'PK001', docNo: 'PK-240610-001',
+    semiProductId: 'P016', inputQty: 500, fgQty: 480, rejectedQty: 20,
+    warehouseId: 'WH02', note: '', status: 'done',
+    createdAt: '2024-06-10T09:00:00', createdBy: 'USR001',
+  },
+  {
+    id: 'PK002', docNo: 'PK-240612-001',
+    semiProductId: 'P021', inputQty: 300, fgQty: 295, rejectedQty: 5,
+    warehouseId: 'WH02', note: 'ล็อตทดสอบ', status: 'done',
+    createdAt: '2024-06-12T10:30:00', createdBy: 'USR002',
   },
 ]

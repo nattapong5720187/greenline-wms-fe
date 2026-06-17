@@ -140,9 +140,10 @@ const createForm = ref({ formulaId: null, batches: 1 })
 
 const statusOptions = [
   { label: 'ยืนยันแล้ว', value: 'confirmed' },
-  { label: 'กำลังผสม', value: 'mixing' },
   { label: 'กำลังแปรรูป', value: 'processing' },
+  { label: 'กำลังผสม', value: 'mixing' },
   { label: 'กำลังบรรจุ', value: 'packing' },
+  { label: 'รอรับเข้า Semi', value: 'receiving' },
   { label: 'เสร็จสิ้น', value: 'done' },
   { label: 'ยกเลิก', value: 'cancelled' },
 ]
@@ -173,7 +174,7 @@ function getEstimatedOutput(id, batches) {
   return f ? `${(f.outputQtyPerBatch * batches).toLocaleString()} ${f.outputUnit}` : '—'
 }
 function statusLabel(s) {
-  return { confirmed: 'ยืนยันแล้ว', mixing: 'กำลังผสม', processing: 'กำลังแปรรูป', packing: 'กำลังบรรจุ', done: 'เสร็จสิ้น', cancelled: 'ยกเลิก' }[s] || s
+  return { confirmed: 'ยืนยันแล้ว', processing: 'กำลังแปรรูป', mixing: 'กำลังผสม', packing: 'กำลังบรรจุ', receiving: 'รอรับเข้า Semi', done: 'เสร็จสิ้น', cancelled: 'ยกเลิก' }[s] || s
 }
 function formatDate(dt) {
   if (!dt) return '—'
@@ -242,6 +243,7 @@ function confirmCancel(order) {
 .po-badge.mixing      { background: #fef3c7; color: #b45309; }
 .po-badge.processing  { background: #ffedd5; color: #c2410c; }
 .po-badge.packing     { background: #ede9fe; color: #6d28d9; }
+.po-badge.receiving   { background: #cffafe; color: #0e7490; }
 .po-badge.done      { background: #dcfce7; color: #166534; }
 .po-badge.cancelled { background: #fee2e2; color: #991b1b; }
 </style>

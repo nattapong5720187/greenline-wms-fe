@@ -53,13 +53,18 @@ export const useProductionStore = defineStore('production', () => {
       plannedBatches: batches,
       status: 'confirmed',
       ingredients,
+      processData: null,
+      mixData: null,
+      fillingData: null,
       semiLot: null,
       fgLot: null,
       actualOutput: null,
       createdAt: new Date().toISOString(),
       confirmedAt: new Date().toISOString(),
+      processedAt: null,
       mixedAt: null,
       packedAt: null,
+      receivedAt: null,
       completedAt: null,
       createdBy: 'USR001',
     }
@@ -67,7 +72,31 @@ export const useProductionStore = defineStore('production', () => {
     return order
   }
 
-  function startMixing(orderId) {
+  // Re-match lots after the user edits / adds / removes raw materials in step 1.
+  function setIngredients(orderId, list) {
+    const order = orders.value.find(o => o.id === orderId)
+    if (!order) return
+    const stockStore = useStockStore()
+    order.ingredients = list
+      .filter(it => it.productId && it.qtyRequired > 0)
+      .map(it => {
+        const fifoLots = stockStore.getLotsForProduct(it.productId)
+        let remaining = it.qtyRequired
+        const lotAssignments = []
+        for (const lot of fifoLots) {
+          if (remaining <= 0) break
+          const take = Math.min(lot.remaining, remaining)
+          if (take > 0) {
+            lotAssignments.push({ lotId: lot.id, lotNo: lot.lotNo, qty: take })
+            remaining -= take
+          }
+        }
+        return { productId: it.productId, qtyRequired: it.qtyRequired, lotAssignments }
+      })
+  }
+
+  // Step 1 → 2: confirm raw materials, deduct stock, move to แปรรูป (Process).
+  function startProcessing(orderId) {
     const order = orders.value.find(o => o.id === orderId)
     if (!order || order.status !== 'confirmed') return
     const stockStore = useStockStore()
@@ -85,56 +114,64 @@ export const useProductionStore = defineStore('production', () => {
         stockStore.deductStock(ing.productId, product.warehouseId, uncovered, null)
       }
     })
+    order.status = 'processing'
+    order.processedStartAt = new Date().toISOString()
+  }
+
+  // Step 2 → 3: record processed-meat output, move to ผสม (Mix).
+  function completeProcessing(orderId, data) {
+    const order = orders.value.find(o => o.id === orderId)
+    if (!order || order.status !== 'processing') return
+    order.processData = data
     order.status = 'mixing'
+    order.processedAt = new Date().toISOString()
     order.mixedAt = new Date().toISOString()
   }
 
-  function completeMixing(orderId) {
+  // Step 3 → 4: record the two mixer logs (sauce + meat), move to บรรจุ (Filling).
+  function completeMixing(orderId, data) {
     const order = orders.value.find(o => o.id === orderId)
     if (!order || order.status !== 'mixing') return
-    order.status = 'processing'
-    order.processedAt = new Date().toISOString()
-  }
-
-  function completeProcessing(orderId, semiQty) {
-    const order = orders.value.find(o => o.id === orderId)
-    if (!order || order.status !== 'processing') return
-    const stockStore = useStockStore()
-    const formula = getFormulaById(order.formulaId)
-    const d = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-    const lotNo = `SEMI-${d}-${String(orders.value.length).padStart(3, '0')}`
-    if (formula?.semiProductId) {
-      stockStore.addStock(formula.semiProductId, 'WH02', semiQty, 'Semi', {
-        lotNo, productId: formula.semiProductId,
-        receiveDate: new Date().toISOString().split('T')[0],
-        expiryDate: null, warehouseId: 'WH02', status: 'active',
-      })
-    }
-    order.semiLot = { lotNo, productId: formula?.semiProductId, qty: semiQty, warehouseId: 'WH02' }
+    order.mixData = data
     order.status = 'packing'
   }
 
-  function completePacking(orderId, fgQty, fgExpiry) {
+  // Step 4 → 5: fill meat+sauce into packages → Semi product, move to รับเข้า Semi.
+  function completeFilling(orderId, data) {
     const order = orders.value.find(o => o.id === orderId)
     if (!order || order.status !== 'packing') return
+    const formula = getFormulaById(order.formulaId)
+    const d = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const lotNo = `SEMI-${d}-${String(orders.value.length).padStart(3, '0')}`
+    order.fillingData = data
+    order.semiLot = {
+      lotNo,
+      productId: formula?.semiProductId || null,
+      qty: data.semiQty,
+      warehouseId: 'WH02',
+      expiryDate: data.expiry || null,
+    }
+    order.status = 'receiving'
+    order.packedAt = new Date().toISOString()
+  }
+
+  // Step 5 → done: receive the Semi product into the warehouse.
+  function receiveSemi(orderId) {
+    const order = orders.value.find(o => o.id === orderId)
+    if (!order || order.status !== 'receiving' || !order.semiLot) return
     const stockStore = useStockStore()
     const formula = getFormulaById(order.formulaId)
-    if (formula?.semiProductId && order.semiLot?.qty) {
-      stockStore.deductStock(formula.semiProductId, 'WH02', order.semiLot.qty, null)
-    }
-    const d = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-    const lotNo = `FG-${d}-${String(orders.value.length).padStart(3, '0')}`
-    if (formula?.outputProductId) {
-      stockStore.addStock(formula.outputProductId, 'WH02', fgQty, 'FG', {
-        lotNo, productId: formula.outputProductId,
+    const semiProductId = formula?.semiProductId || order.semiLot.productId
+    if (semiProductId) {
+      stockStore.addStock(semiProductId, 'WH02', order.semiLot.qty, 'Semi', {
+        lotNo: order.semiLot.lotNo, productId: semiProductId,
         receiveDate: new Date().toISOString().split('T')[0],
-        expiryDate: fgExpiry || null, warehouseId: 'WH02', status: 'active',
+        expiryDate: order.semiLot.expiryDate || null, warehouseId: 'WH02', status: 'active',
       })
     }
-    order.fgLot = { lotNo, productId: formula?.outputProductId, qty: fgQty, warehouseId: 'WH02' }
-    order.actualOutput = fgQty
+    order.actualOutput = order.semiLot.qty
     order.status = 'done'
-    order.packedAt = new Date().toISOString()
+    order.receivedAt = new Date().toISOString()
     order.completedAt = new Date().toISOString()
   }
 
@@ -146,14 +183,15 @@ export const useProductionStore = defineStore('production', () => {
   const counts = computed(() => ({
     all: orders.value.filter(o => o.status !== 'cancelled').length,
     confirmed: orders.value.filter(o => o.status === 'confirmed').length,
-    inProgress: orders.value.filter(o => ['mixing', 'processing', 'packing'].includes(o.status)).length,
+    inProgress: orders.value.filter(o => ['processing', 'mixing', 'packing', 'receiving'].includes(o.status)).length,
     done: orders.value.filter(o => o.status === 'done').length,
   }))
 
   return {
     formulas, orders, counts,
     getFormulaById, addFormula, updateFormula, deleteFormula,
-    createOrder, startMixing, completeMixing, completeProcessing, completePacking, cancelOrder,
+    createOrder, setIngredients, startProcessing, completeProcessing, completeMixing,
+    completeFilling, receiveSemi, cancelOrder,
     matchLots,
   }
 })
