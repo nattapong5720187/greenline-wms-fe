@@ -33,6 +33,13 @@ export const UNITS = [
   { id: 'U10', code: 'SET',  name: 'ชุด',         abbr: 'set'  },
 ]
 
+export const MACHINES = [
+  { id: 'MC01', machineId: 'HM-001', name: 'Homo Mixer 1',  type: 'homo mixer',   active: true },
+  { id: 'MC02', machineId: 'HM-002', name: 'Homo Mixer 2',  type: 'homo mixer',   active: true },
+  { id: 'MC03', machineId: 'RM-001', name: 'Ribbon Mixer 1', type: 'ribbon mixer', active: true },
+  { id: 'MC04', machineId: 'RM-002', name: 'Ribbon Mixer 2', type: 'ribbon mixer', active: true },
+]
+
 export const SUPPLIERS = [
   { id: 'SUP001', code: 'SUP001', name: 'บริษัท อาหารสด จำกัด',       contact: 'คุณสมชาย', phone: '02-111-1111', active: true },
   { id: 'SUP002', code: 'SUP002', name: 'บริษัท เคมีภัณฑ์ไทย จำกัด',  contact: 'คุณสมหญิง', phone: '02-222-2222', active: true },

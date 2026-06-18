@@ -83,6 +83,7 @@ const pageTitle = computed(() => {
     '/master/units': 'หน่วยนับ',
     '/master/warehouses': 'คลังสินค้า',
     '/master/suppliers': 'ซัพพลายเออร์',
+    '/master/machines': 'เครื่องจักร',
     '/admin/users': 'ผู้ใช้ & สิทธิ์',
     '/documents': 'รายการเอกสาร',
     '/documents/receipt/create': 'สร้างใบรับเข้า (GR)',

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
-  WAREHOUSES, CATEGORIES, UNITS, SUPPLIERS, PRODUCTS, USERS
+  WAREHOUSES, CATEGORIES, UNITS, SUPPLIERS, PRODUCTS, USERS, MACHINES
 } from '@/data/mockData'
 
 function makeId(prefix) {
@@ -15,6 +15,7 @@ export const useMasterStore = defineStore('master', () => {
   const suppliers = ref([...SUPPLIERS])
   const products = ref([...PRODUCTS])
   const users = ref([...USERS])
+  const machines = ref([...MACHINES])
 
   // ---- Warehouses ----
   function addWarehouse(data) {
@@ -88,21 +89,35 @@ export const useMasterStore = defineStore('master', () => {
     users.value = users.value.filter(u => u.id !== id)
   }
 
+  // ---- Machines ----
+  function addMachine(data) {
+    machines.value.push({ ...data, id: makeId('MC'), active: true })
+  }
+  function updateMachine(id, data) {
+    const i = machines.value.findIndex(m => m.id === id)
+    if (i !== -1) machines.value[i] = { ...machines.value[i], ...data }
+  }
+  function deleteMachine(id) {
+    machines.value = machines.value.filter(m => m.id !== id)
+  }
+
   // ---- Helpers ----
   function getCategoryById(id) { return categories.value.find(c => c.id === id) }
   function getUnitById(id) { return units.value.find(u => u.id === id) }
   function getWarehouseById(id) { return warehouses.value.find(w => w.id === id) }
   function getSupplierById(id) { return suppliers.value.find(s => s.id === id) }
   function getProductById(id) { return products.value.find(p => p.id === id) }
+  function getMachineById(id) { return machines.value.find(m => m.id === id) }
 
   return {
-    warehouses, categories, units, suppliers, products, users,
+    warehouses, categories, units, suppliers, products, users, machines,
     addWarehouse, updateWarehouse, deleteWarehouse,
     addCategory, updateCategory, deleteCategory,
     addUnit, updateUnit, deleteUnit,
     addSupplier, updateSupplier, deleteSupplier,
     addProduct, updateProduct, deleteProduct,
     addUser, updateUser, deleteUser,
-    getCategoryById, getUnitById, getWarehouseById, getSupplierById, getProductById,
+    addMachine, updateMachine, deleteMachine,
+    getCategoryById, getUnitById, getWarehouseById, getSupplierById, getProductById, getMachineById,
   }
 })

@@ -27,89 +27,59 @@
     <div v-if="order.status === 'confirmed'" class="page-card">
       <div class="section-title">
         วัตถุดิบที่ต้องใช้ ({{ order.plannedBatches }} Batch)
-        <span class="hint">— แก้ไขปริมาณ / เพิ่ม / ลบ รายการได้</span>
+        <span class="hint">— ตามสูตร {{ formulaName }} (ตรวจสอบและยืนยัน)</span>
       </div>
 
-      <!-- Premix table -->
+      <!-- Premix table (read-only) -->
       <div class="tbl-head">
         <span class="tbl-title"><i class="pi pi-bolt" /> Premix</span>
-        <Button label="เพิ่ม Premix" icon="pi pi-plus" text size="small" @click="addRow(premixRows, true)" />
       </div>
       <table class="edit-tbl">
         <thead>
           <tr>
             <th style="width: 40px">#</th>
             <th>วัตถุดิบ (Premix)</th>
-            <th style="width: 200px">ปริมาณ</th>
-            <th style="width: 48px"></th>
+            <th style="width: 200px; text-align: right">ปริมาณ</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(row, idx) in premixRows" :key="'pm' + idx">
             <td>{{ idx + 1 }}</td>
             <td>
-              <Dropdown
-                v-model="row.productId"
-                :options="premixProductOptions"
-                optionLabel="label"
-                optionValue="value"
-                filter
-                placeholder="เลือก Premix"
-                style="width: 100%"
-              />
+              <div style="font-weight: 500">{{ nameOf(row.productId) }}</div>
+              <div class="code-sub">{{ codeOf(row.productId) }}</div>
             </td>
-            <td>
-              <div class="qty-cell">
-                <InputNumber v-model="row.qtyRequired" :min="0" :maxFractionDigits="3" inputStyle="width:120px" />
-                <span class="unit">{{ unitAbbrOf(row.productId) }}</span>
-              </div>
-            </td>
-            <td><Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="premixRows.splice(idx, 1)" /></td>
+            <td style="text-align: right"><strong>{{ row.qtyRequired.toLocaleString() }} {{ unitAbbrOf(row.productId) }}</strong></td>
           </tr>
           <tr v-if="premixRows.length === 0">
-            <td colspan="4" class="empty-row">ไม่มี Premix — กด "เพิ่ม Premix"</td>
+            <td colspan="3" class="empty-row">ไม่มี Premix ในสูตรนี้</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- Ingredient table -->
+      <!-- Ingredient table (read-only) -->
       <div class="tbl-head" style="margin-top: 22px">
         <span class="tbl-title"><i class="pi pi-box" /> วัตถุดิบ (Ingredient)</span>
-        <Button label="เพิ่มวัตถุดิบ" icon="pi pi-plus" text size="small" @click="addRow(ingredientRows, false)" />
       </div>
       <table class="edit-tbl">
         <thead>
           <tr>
             <th style="width: 40px">#</th>
             <th>วัตถุดิบ</th>
-            <th style="width: 200px">ปริมาณ</th>
-            <th style="width: 48px"></th>
+            <th style="width: 200px; text-align: right">ปริมาณ</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(row, idx) in ingredientRows" :key="'ing' + idx">
             <td>{{ idx + 1 }}</td>
             <td>
-              <Dropdown
-                v-model="row.productId"
-                :options="ingredientProductOptions"
-                optionLabel="label"
-                optionValue="value"
-                filter
-                placeholder="เลือกวัตถุดิบ"
-                style="width: 100%"
-              />
+              <div style="font-weight: 500">{{ nameOf(row.productId) }}</div>
+              <div class="code-sub">{{ codeOf(row.productId) }}</div>
             </td>
-            <td>
-              <div class="qty-cell">
-                <InputNumber v-model="row.qtyRequired" :min="0" :maxFractionDigits="3" inputStyle="width:120px" />
-                <span class="unit">{{ unitAbbrOf(row.productId) }}</span>
-              </div>
-            </td>
-            <td><Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="ingredientRows.splice(idx, 1)" /></td>
+            <td style="text-align: right"><strong>{{ row.qtyRequired.toLocaleString() }} {{ unitAbbrOf(row.productId) }}</strong></td>
           </tr>
           <tr v-if="ingredientRows.length === 0">
-            <td colspan="4" class="empty-row">ไม่มีวัตถุดิบ — กด "เพิ่มวัตถุดิบ"</td>
+            <td colspan="3" class="empty-row">ไม่มีวัตถุดิบในสูตรนี้</td>
           </tr>
         </tbody>
       </table>
@@ -123,13 +93,6 @@
     <!-- ===== Step 2: แปรรูป (Process) ===== -->
     <div v-else-if="order.status === 'processing'" class="page-card">
       <div class="section-title">ขั้นตอนแปรรูป (เตรียมเนื้อ)</div>
-      <div class="info-box orange">
-        <i class="pi pi-sync" />
-        <div>
-          <div style="font-weight: 600; font-size: 15px">กำลังแปรรูป</div>
-          <div style="font-size: 13px; color: #9a3412">บันทึกปริมาณเนื้อที่แปรรูปได้</div>
-        </div>
-      </div>
 
       <div class="section-title" style="margin-top: 16px">วัตถุดิบที่ใช้</div>
       <table class="edit-tbl">
@@ -138,7 +101,6 @@
             <th style="width: 40px">#</th>
             <th>วัตถุดิบ</th>
             <th style="width: 160px; text-align: right">ปริมาณที่ใช้</th>
-            <th>Lot ที่ใช้ (FIFO)</th>
           </tr>
         </thead>
         <tbody>
@@ -149,31 +111,10 @@
               <div class="code-sub">{{ codeOf(ing.productId) }}</div>
             </td>
             <td style="text-align: right"><strong>{{ ing.qtyRequired.toLocaleString() }} {{ unitAbbrOf(ing.productId) }}</strong></td>
-            <td>
-              <span v-if="!ing.lotAssignments.length" class="code-sub">—</span>
-              <span v-for="la in ing.lotAssignments" :key="la.lotId" class="lot-chip">{{ la.lotNo }} ({{ la.qty }})</span>
-            </td>
           </tr>
         </tbody>
       </table>
 
-      <div class="sub-card" style="margin-top: 16px">
-        <div class="section-title" style="margin: 0 0 12px">บันทึกผลแปรรูป</div>
-        <div class="field-grid">
-          <div class="form-field">
-            <label>ปริมาณเนื้อที่แปรรูปได้ (kg) <span class="req">*</span></label>
-            <InputNumber v-model="processQty" :min="0" :maxFractionDigits="2" inputClass="w-full" />
-          </div>
-          <div class="form-field">
-            <label>อุณหภูมิเนื้อ (°C)</label>
-            <InputNumber v-model="processTemp" :maxFractionDigits="1" inputClass="w-full" />
-          </div>
-          <div class="form-field" style="grid-column: span 2">
-            <label>หมายเหตุ</label>
-            <InputText v-model="processNote" placeholder="บันทึกเพิ่มเติม" />
-          </div>
-        </div>
-      </div>
       <div class="action-bar">
         <Button label="แปรรูปเสร็จ → ผสม" icon="pi pi-arrow-right" class="btn-primary" @click="doCompleteProcessing" />
       </div>
@@ -200,6 +141,11 @@
           <div class="form-field"><label>รหัสสูตร (Code)</label><InputText v-model="sauce.code" style="width: 150px" /></div>
           <div class="form-field"><label>Date</label><InputText v-model="sauce.date" type="date" style="width: 160px" /></div>
           <div class="form-field"><label>Mix size (kg)</label><InputNumber v-model="sauce.mixSize" :min="0" style="width: 120px" /></div>
+          <div class="form-field">
+            <label>เครื่องจักร (Machine)</label>
+            <Dropdown v-model="sauce.machineId" :options="homoMixerOptions" optionLabel="label" optionValue="value"
+              placeholder="เลือกเครื่องจักร" style="width: 220px" />
+          </div>
         </div>
 
         <div class="mix-scroll">
@@ -210,6 +156,7 @@
                 <th v-for="c in sauce.columns" :key="c.key">
                   {{ c.label }}<div class="target" v-if="c.target != null">{{ c.target.toLocaleString() }} {{ c.unit }}</div>
                 </th>
+                <th class="end-col">Start</th>
                 <th class="end-col">End</th>
                 <th class="act-col"></th>
               </tr>
@@ -220,7 +167,8 @@
                 <td v-for="c in sauce.columns" :key="c.key">
                   <input v-model.number="row.values[c.key]" type="number" step="0.01" class="cell-input" />
                 </td>
-                <td><input v-model.number="row.end" type="number" step="0.01" class="cell-input" /></td>
+                <td><input v-model="row.start" type="time" class="cell-input" /></td>
+                <td><input v-model="row.end" type="time" class="cell-input" /></td>
                 <td class="act-col">
                   <button v-if="sauce.rows.length > 1" class="row-del" title="ลบรอบนี้" @click="sauce.rows.splice(idx, 1)">
                     <i class="pi pi-trash" />
@@ -244,6 +192,11 @@
           <div class="form-field"><label>Code</label><InputText v-model="meat.code" style="width: 150px" /></div>
           <div class="form-field"><label>Date</label><InputText v-model="meat.date" type="date" style="width: 160px" /></div>
           <div class="form-field"><label>Mix size (kg)</label><InputNumber v-model="meat.mixSize" :min="0" style="width: 120px" /></div>
+          <div class="form-field">
+            <label>เครื่องจักร (Machine)</label>
+            <Dropdown v-model="meat.machineId" :options="ribbonMixerOptions" optionLabel="label" optionValue="value"
+              placeholder="เลือกเครื่องจักร" style="width: 220px" />
+          </div>
         </div>
 
         <div class="mix-scroll">
@@ -254,6 +207,7 @@
                 <th v-for="c in meat.columns" :key="c.key">
                   {{ c.label }}<div class="target" v-if="c.target != null">{{ c.target.toLocaleString() }} {{ c.unit }}</div>
                 </th>
+                <th class="end-col">Start</th>
                 <th class="end-col">End</th>
                 <th class="end-col">อุณหภูมิ</th>
                 <th class="act-col"></th>
@@ -265,7 +219,8 @@
                 <td v-for="c in meat.columns" :key="c.key">
                   <input v-model.number="row.values[c.key]" type="number" step="0.01" class="cell-input" />
                 </td>
-                <td><input v-model.number="row.end" type="number" step="0.01" class="cell-input" /></td>
+                <td><input v-model="row.start" type="time" class="cell-input" /></td>
+                <td><input v-model="row.end" type="time" class="cell-input" /></td>
                 <td><input v-model.number="row.temp" type="number" step="0.1" class="cell-input" /></td>
                 <td class="act-col">
                   <button v-if="meat.rows.length > 1" class="row-del" title="ลบรอบนี้" @click="meat.rows.splice(idx, 1)">
@@ -280,7 +235,8 @@
                 <td v-for="c in meat.columns" :key="c.key">
                   <input v-model.number="meat.totals[c.key]" type="number" step="0.01" class="cell-input" />
                 </td>
-                <td><input v-model.number="meat.totals.end" type="number" step="0.01" class="cell-input" /></td>
+                <td class="hatch"></td>
+                <td class="hatch"></td>
                 <td class="hatch"></td>
                 <td class="act-col"></td>
               </tr>
@@ -289,19 +245,6 @@
         </div>
         <button class="add-round" @click="addMeatRow"><i class="pi pi-plus" /> เพิ่มรอบ Mix</button>
 
-        <div class="sub-card" style="margin-top: 16px">
-          <div class="section-title" style="margin: 0 0 12px">ข้อมูลเพิ่มเติม</div>
-          <div class="meat-extra">
-            <div class="form-field"><label>ปริมาณ Topping</label><InputText v-model="meat.extra.topping" style="width: 100%" /></div>
-            <div class="form-field"><label>อุณหภูมิถุงแรก (°C)</label><InputNumber v-model="meat.extra.tempFirst" :maxFractionDigits="1" style="width: 100%" /></div>
-            <div class="form-field"><label>อุณหภูมิถุงสุดท้าย (°C)</label><InputNumber v-model="meat.extra.tempLast" :maxFractionDigits="1" style="width: 100%" /></div>
-            <div class="form-field"><label>บรรจุภัณฑ์ : รับเข้า</label><InputNumber v-model="meat.extra.packReceive" :min="0" style="width: 100%" /></div>
-            <div class="form-field"><label>ยอดรวมของดี</label><InputNumber v-model="meat.extra.totalCount" :min="0" style="width: 100%" /></div>
-            <div class="form-field"><label>ของเสีย</label><InputNumber v-model="meat.extra.defect" :min="0" style="width: 100%" /></div>
-            <div class="form-field"><label>รูปแบบการ ink code</label><InputText v-model="meat.extra.inkCode" style="width: 100%" /></div>
-            <div class="form-field"><label>เวลาเข้า Retort</label><InputText v-model="meat.extra.retortTime" type="time" style="width: 100%" /></div>
-          </div>
-        </div>
         <div class="action-bar">
           <Button label="ย้อนกลับ" text icon="pi pi-arrow-left" @click="mixSub = 'sauce'" />
           <Button label="ผสมเสร็จ → บรรจุ" icon="pi pi-arrow-right" class="btn-primary" @click="doCompleteMixing" />
@@ -316,28 +259,7 @@
         <i class="pi pi-box" />
         <div>
           <div style="font-weight: 600; font-size: 15px">บรรจุลงแพ็กเกจ → Semi</div>
-          <div style="font-size: 13px; color: #166534">นำเนื้อผสมซอสบรรจุลงบรรจุภัณฑ์ แล้วบันทึกปริมาณ Semi ที่ได้</div>
-        </div>
-      </div>
-      <div class="sub-card">
-        <div class="section-title" style="margin: 0 0 12px">บันทึก Semi ที่บรรจุได้</div>
-        <div class="field-grid">
-          <div class="form-field">
-            <label>ปริมาณ Semi ({{ formula?.outputUnit || "หน่วย" }}) <span class="req">*</span></label>
-            <InputNumber v-model="fillSemiQty" :min="0" inputClass="w-full" />
-          </div>
-          <div class="form-field">
-            <label>จำนวนแพ็ก</label>
-            <InputNumber v-model="fillPackCount" :min="0" inputClass="w-full" />
-          </div>
-          <div class="form-field">
-            <label>วันหมดอายุ</label>
-            <input v-model="fillExpiry" type="date" class="native-date" />
-          </div>
-          <div class="form-field">
-            <label>หมายเหตุ</label>
-            <InputText v-model="fillNote" placeholder="บันทึกเพิ่มเติม" />
-          </div>
+          <div style="font-size: 13px; color: #166534">นำเนื้อผสมซอสบรรจุลงบรรจุภัณฑ์</div>
         </div>
       </div>
       <div class="action-bar">
@@ -347,19 +269,14 @@
 
     <!-- ===== Step 5: รับเข้า Semi ===== -->
     <div v-else-if="order.status === 'receiving'" class="page-card">
-      <div class="section-title">รับ Semi เข้าคลัง</div>
-      <div class="info-box green">
-        <i class="pi pi-inbox" />
+      <div class="done-banner">
+        <i class="pi pi-check-circle" style="font-size: 40px; color: #10b981" />
         <div>
-          <div class="info-label">Semi ที่บรรจุได้</div>
-          <div class="info-row"><span>Lot No.:</span> <strong style="font-family: monospace">{{ order.semiLot?.lotNo }}</strong></div>
-          <div class="info-row"><span>ปริมาณ:</span> <strong>{{ order.semiLot?.qty?.toLocaleString() }} {{ formula?.outputUnit }}</strong></div>
-          <div class="info-row"><span>คลัง:</span> <strong>{{ warehouseName(order.semiLot?.warehouseId) }}</strong></div>
-          <div v-if="order.semiLot?.expiryDate" class="info-row"><span>หมดอายุ:</span> <strong>{{ order.semiLot.expiryDate }}</strong></div>
+          <div style="font-size: 18px; font-weight: 700; color: #166534">สำเร็จ</div>
         </div>
       </div>
       <div class="action-bar">
-        <Button label="ยืนยันรับ Semi เข้าคลัง" icon="pi pi-check" class="btn-primary" @click="doReceiveSemi" />
+        <Button label="ดำเนินการต่อ" icon="pi pi-arrow-right" class="btn-primary" @click="doReceiveSemi" />
       </div>
     </div>
 
@@ -417,7 +334,7 @@ const order = computed(() => productionStore.orders.find((o) => o.id === route.p
 const formula = computed(() => (order.value ? productionStore.getFormulaById(order.value.formulaId) : null));
 const formulaName = computed(() => formula.value?.name || "—");
 
-const steps = ["ยืนยันวัตถุดิบ", "แปรรูป", "ผสม", "บรรจุ", "รับเข้า Semi"];
+const steps = ["ยืนยันวัตถุดิบ", "แปรรูป", "ผสม", "บรรจุ", "สำเร็จ"];
 const stepIndex = computed(
   () => ({ confirmed: 0, processing: 1, mixing: 2, packing: 3, receiving: 4, done: 5 })[order.value?.status] ?? 0,
 );
@@ -439,14 +356,14 @@ function unitAbbrOf(id) {
   const p = masterStore.getProductById(id);
   return masterStore.getUnitById(p?.unitId)?.abbr || "";
 }
-function warehouseName(id) { return masterStore.getWarehouseById(id)?.name || id || "—"; }
 
-const productOptionsFor = (premix) =>
-  masterStore.products
-    .filter((p) => p.active && (premix ? p.categoryId === "CAT11" : p.categoryId !== "CAT11"))
-    .map((p) => ({ label: `${p.code} — ${p.name}`, value: p.id }));
-const premixProductOptions = computed(() => productOptionsFor(true));
-const ingredientProductOptions = computed(() => productOptionsFor(false));
+// ---- machine options ----
+const machineOptionsByType = (type) =>
+  masterStore.machines
+    .filter((m) => m.active && m.type === type)
+    .map((m) => ({ label: `${m.machineId} — ${m.name}`, value: m.id }));
+const homoMixerOptions = computed(() => machineOptionsByType("homo mixer"));
+const ribbonMixerOptions = computed(() => machineOptionsByType("ribbon mixer"));
 
 // ---- Step 1: confirm (editable) ----
 const premixRows = ref([]);
@@ -460,7 +377,6 @@ function initConfirm() {
     else ingredientRows.value.push(row);
   }
 }
-function addRow(arr, _premix) { arr.push({ productId: null, qtyRequired: 0 }); }
 
 // ---- Step 2: process ----
 const processQty = ref(0);
@@ -475,14 +391,14 @@ function initProcess() {
 
 // ---- Step 3: mix ----
 const mixSub = ref("sauce");
-const sauce = reactive({ name: "", code: "", date: "", mixSize: 50, columns: [], rows: [] });
-const meat = reactive({ name: "", code: "", date: "", mixSize: 0, columns: [], rows: [], totals: {}, extra: {} });
+const sauce = reactive({ name: "", code: "", date: "", mixSize: 50, machineId: null, columns: [], rows: [] });
+const meat = reactive({ name: "", code: "", date: "", mixSize: 0, machineId: null, columns: [], rows: [], totals: {} });
 
 function makeSauceRow() {
-  return { values: Object.fromEntries(sauce.columns.map((c) => [c.key, null])), end: null };
+  return { values: Object.fromEntries(sauce.columns.map((c) => [c.key, null])), start: "", end: "" };
 }
 function makeMeatRow() {
-  return { values: Object.fromEntries(meat.columns.map((c) => [c.key, null])), end: null, temp: null };
+  return { values: Object.fromEntries(meat.columns.map((c) => [c.key, null])), start: "", end: "", temp: null };
 }
 function addSauceRow() { sauce.rows.push(makeSauceRow()); }
 function addMeatRow() { meat.rows.push(makeMeatRow()); }
@@ -496,8 +412,11 @@ function initMix() {
   const meatIngs = ings.filter((i) => !isPremix(i.productId));
   const saved = order.value.mixData;
 
+  // base soft-water amount (a part of premix) — shown like Premix targets
+  const baseWater = saved?.sauce?.mixSize ?? 50;
+
   // sauce columns: base liquid + each premix
-  const sCols = [{ key: "base", label: "น้ำ soft", target: null, unit: "kg" }];
+  const sCols = [{ key: "base", label: "น้ำ soft", target: baseWater, unit: "kg" }];
   premixIngs.forEach((i, idx) =>
     sCols.push({ key: "p" + idx, label: nameOf(i.productId), target: i.qtyRequired, unit: unitAbbrOf(i.productId) }),
   );
@@ -507,6 +426,7 @@ function initMix() {
   sauce.code = saved?.sauce?.code ?? formula.value?.code ?? "";
   sauce.date = saved?.sauce?.date ?? todayStr();
   sauce.mixSize = saved?.sauce?.mixSize ?? 50;
+  sauce.machineId = saved?.sauce?.machineId ?? homoMixerOptions.value[0]?.value ?? null;
   sauce.columns = saved?.sauce?.columns ?? sCols;
   sauce.rows = saved?.sauce?.rows ?? [makeSauceRow()];
 
@@ -520,13 +440,10 @@ function initMix() {
   meat.code = saved?.meat?.code ?? formula.value?.code ?? "";
   meat.date = saved?.meat?.date ?? todayStr();
   meat.mixSize = saved?.meat?.mixSize ?? (formula.value?.outputQtyPerBatch ?? 0);
+  meat.machineId = saved?.meat?.machineId ?? ribbonMixerOptions.value[0]?.value ?? null;
   meat.columns = saved?.meat?.columns ?? mCols;
   meat.rows = saved?.meat?.rows ?? [makeMeatRow()];
-  meat.totals = saved?.meat?.totals ?? Object.fromEntries([...mCols.map((c) => [c.key, null]), ["end", null]]);
-  meat.extra = saved?.meat?.extra ?? {
-    topping: "", tempFirst: null, tempLast: null, packReceive: null,
-    totalCount: null, defect: null, inkCode: "", retortTime: "",
-  };
+  meat.totals = saved?.meat?.totals ?? Object.fromEntries(mCols.map((c) => [c.key, null]));
   mixSub.value = "sauce";
 }
 
@@ -561,7 +478,7 @@ watch(
 function statusLabel(s) {
   return {
     confirmed: "ยืนยันแล้ว", processing: "กำลังแปรรูป", mixing: "กำลังผสม",
-    packing: "กำลังบรรจุ", receiving: "รอรับเข้า Semi", done: "เสร็จสิ้น", cancelled: "ยกเลิก",
+    packing: "กำลังบรรจุ", receiving: "สำเร็จ", done: "เสร็จสิ้น", cancelled: "ยกเลิก",
   }[s] || s;
 }
 function formatDt(dt) {
@@ -608,9 +525,9 @@ function doCompleteProcessing() {
 function doCompleteMixing() {
   productionStore.completeMixing(order.value.id, {
     sauce: { name: sauce.name, code: sauce.code, date: sauce.date, mixSize: sauce.mixSize,
-      columns: sauce.columns, rows: sauce.rows },
+      machineId: sauce.machineId, columns: sauce.columns, rows: sauce.rows },
     meat: { name: meat.name, code: meat.code, date: meat.date, mixSize: meat.mixSize,
-      columns: meat.columns, rows: meat.rows, totals: meat.totals, extra: meat.extra },
+      machineId: meat.machineId, columns: meat.columns, rows: meat.rows, totals: meat.totals },
   });
   toast.add({ severity: "success", summary: "ผสมเสร็จแล้ว", detail: "ดำเนินการบรรจุต่อไป", life: 3000 });
 }
@@ -633,6 +550,7 @@ function doReceiveSemi() {
     severity: "success", summary: "รับ Semi เข้าคลังสำเร็จ!",
     detail: `${order.value?.actualOutput?.toLocaleString()} ${formula.value?.outputUnit}`, life: 4000,
   });
+  router.push("/production/orders");
 }
 </script>
 
@@ -707,7 +625,13 @@ function doReceiveSemi() {
   font-size: 14px; font-weight: 700; text-align: center; color: #1e2a3b;
   margin: 4px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #1e2a3b;
 }
-.sheet-head { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 18px; }
+.sheet-head { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
+.sheet-head :deep(.p-inputtext),
+.sheet-head :deep(.p-inputnumber),
+.sheet-head :deep(.p-inputnumber-input),
+.sheet-head :deep(.p-dropdown) { height: 42px; }
+.sheet-head :deep(.p-inputnumber-input) { width: 100%; }
+.sheet-head :deep(.p-dropdown) { display: inline-flex; align-items: center; }
 
 /* ===== modern mix data-grid ===== */
 .mix-scroll {
@@ -792,7 +716,6 @@ function doReceiveSemi() {
 }
 .add-round:hover { border-color: #84cc16; color: #4d7c0f; background: #f7fee7; }
 
-.meat-extra { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
 
 /* form grid — prevents field overlap, inputs fill their cell */
 .field-grid {

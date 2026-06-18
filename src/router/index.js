@@ -24,6 +24,7 @@ const routes = [
       { path: 'master/units', name: 'Units', component: () => import('@/views/master/UnitView.vue') },
       { path: 'master/warehouses', name: 'Warehouses', component: () => import('@/views/master/WarehouseView.vue') },
       { path: 'master/suppliers', name: 'Suppliers', component: () => import('@/views/master/SupplierView.vue') },
+      { path: 'master/machines', name: 'Machines', component: () => import('@/views/master/MachineView.vue') },
 
       // Admin
       { path: 'admin/users', name: 'Users', component: () => import('@/views/admin/UserRoleView.vue'), meta: { adminOnly: true } },

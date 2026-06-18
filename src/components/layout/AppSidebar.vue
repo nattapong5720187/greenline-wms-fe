@@ -68,6 +68,7 @@ const navGroups = computed(() => [
       { display: true,  to: '/master/units',                 icon: 'pi pi-calculator',            label: 'หน่วยนับ' },
       { display: true,  to: '/master/warehouses',            icon: 'pi pi-building',              label: 'คลังสินค้า' },
       { display: false, to: '/master/suppliers',             icon: 'pi pi-truck',                 label: 'ซัพพลายเออร์' },
+      { display: true,  to: '/master/machines',              icon: 'pi pi-cog',                   label: 'เครื่องจักร' },
     ]
   },
   {
