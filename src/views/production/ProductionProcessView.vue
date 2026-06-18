@@ -135,7 +135,11 @@
 
       <!-- Sub-step 1: Homo Mixer (สร้างซอส) -->
       <div v-show="mixSub === 'sauce'">
-        <div class="sheet-title">รายงานการผสมผลิตที่เครื่อง Homo Mixer</div>
+        <div class="sheet-title-bar">
+          <div class="sheet-title">รายงานการผสมผลิตที่เครื่อง Homo Mixer</div>
+          <Button label="ดาวน์โหลดเอกสาร" icon="pi pi-download" outlined size="small" class="dl-btn"
+            @click="downloadMixReport('sauce')" />
+        </div>
         <div class="sheet-head">
           <div class="form-field"><label>ชื่อสูตร (Name)</label><InputText v-model="sauce.name" style="width: 220px" /></div>
           <div class="form-field"><label>รหัสสูตร (Code)</label><InputText v-model="sauce.code" style="width: 150px" /></div>
@@ -186,7 +190,11 @@
 
       <!-- Sub-step 2: Ribbon Mixer (เนื้อ + ซอส) -->
       <div v-show="mixSub === 'meat'">
-        <div class="sheet-title">รายงานผสมผลิตภัณฑ์กันที่เครื่อง Ribbon Mixer</div>
+        <div class="sheet-title-bar">
+          <div class="sheet-title">รายงานผสมผลิตภัณฑ์กันที่เครื่อง Ribbon Mixer</div>
+          <Button label="ดาวน์โหลดเอกสาร" icon="pi pi-download" outlined size="small" class="dl-btn"
+            @click="downloadMixReport('meat')" />
+        </div>
         <div class="sheet-head">
           <div class="form-field"><label>ชื่อสูตร (Name)</label><InputText v-model="meat.name" style="width: 220px" /></div>
           <div class="form-field"><label>Code</label><InputText v-model="meat.code" style="width: 150px" /></div>
@@ -528,6 +536,92 @@ function doCompleteMixing() {
   toast.add({ severity: "success", summary: "ผสมเสร็จแล้ว", detail: "ดำเนินการบรรจุต่อไป", life: 3000 });
 }
 
+function machineLabel(id) {
+  const m = masterStore.getMachineById(id);
+  return m ? `${m.machineId} — ${m.name}` : "—";
+}
+
+function downloadMixReport(type) {
+  const sheet = type === "meat" ? meat : sauce;
+  const title =
+    type === "meat"
+      ? "รายงานผสมผลิตภัณฑ์กันที่เครื่อง Ribbon Mixer"
+      : "รายงานการผสมผลิตที่เครื่อง Homo Mixer";
+  const esc = (v) => String(v ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const cols = sheet.columns || [];
+  const isMeat = type === "meat";
+
+  const headCells = [
+    "ครั้งที่ Mix",
+    ...cols.map((c) => esc(c.label) + (c.target != null ? ` (${c.target} ${esc(c.unit)})` : "")),
+    "Start",
+    "End",
+    ...(isMeat ? ["อุณหภูมิ"] : []),
+  ];
+  const bodyRows = (sheet.rows || []).map((r, i) => {
+    const cells = [
+      i + 1,
+      ...cols.map((c) => esc(r.values?.[c.key])),
+      esc(r.start),
+      esc(r.end),
+      ...(isMeat ? [esc(r.temp)] : []),
+    ];
+    return `<tr>${cells.map((c, j) => `<td${j === 0 ? ' class="no"' : ""}>${c}</td>`).join("")}</tr>`;
+  });
+  let totalRow = "";
+  if (isMeat && sheet.totals) {
+    const cells = [
+      "Total",
+      ...cols.map((c) => esc(sheet.totals[c.key])),
+      "",
+      "",
+      "",
+    ];
+    totalRow = `<tr class="total">${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+  }
+
+  const html = `<!doctype html><html lang="th"><head><meta charset="utf-8">
+<title>${esc(title)} — ${esc(order.value?.docNo || "")}</title>
+<style>
+  body { font-family: 'Kanit', 'Sarabun', sans-serif; color: #1e2a3b; padding: 28px; }
+  h1 { text-align: center; font-size: 18px; border-bottom: 2px solid #1e2a3b; padding-bottom: 10px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 18px 32px; margin: 16px 0 20px; font-size: 13px; }
+  .meta b { display: block; color: #64748b; font-weight: 500; font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #1e2a3b; color: #fff; padding: 8px; text-align: center; }
+  td { border: 1px solid #e2e8f0; padding: 7px 8px; text-align: center; }
+  td.no { background: #f8fafc; font-weight: 700; }
+  tr.total td { background: #1e2a3b; color: #fff; font-weight: 700; }
+  .foot { margin-top: 16px; font-size: 11px; color: #94a3b8; text-align: right; }
+</style></head><body>
+<h1>${esc(title)}</h1>
+<div class="meta">
+  <div><b>เลขที่ใบสั่งผลิต</b>${esc(order.value?.docNo || "—")}</div>
+  <div><b>ชื่อสูตร (Name)</b>${esc(sheet.name || "—")}</div>
+  <div><b>Code</b>${esc(sheet.code || "—")}</div>
+  <div><b>Date</b>${esc(sheet.date || "—")}</div>
+  <div><b>Mix size (kg)</b>${esc(sheet.mixSize ?? "—")}</div>
+  <div><b>เครื่องจักร (Machine)</b>${esc(machineLabel(sheet.machineId))}</div>
+</div>
+<table>
+  <thead><tr>${headCells.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+  <tbody>${bodyRows.join("")}${totalRow}</tbody>
+</table>
+<div class="foot">พิมพ์เมื่อ ${new Date().toLocaleString("th-TH")}</div>
+</body></html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${order.value?.docNo || "mix"}-${type === "meat" ? "ribbon-mixer" : "homo-mixer"}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast.add({ severity: "success", summary: "ดาวน์โหลดเอกสารแล้ว", life: 2500 });
+}
+
 function doCompleteFilling() {
   productionStore.completeFilling(order.value.id, {
     semiQty: fillSemiQty.value, packCount: fillPackCount.value,
@@ -617,6 +711,9 @@ function doReceiveSemi() {
   font-size: 14px; font-weight: 700; text-align: center; color: #1e2a3b;
   margin: 4px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #1e2a3b;
 }
+.sheet-title-bar { position: relative; }
+.sheet-title-bar .sheet-title { margin-right: 0; }
+.sheet-title-bar .dl-btn { position: absolute; right: 0; top: -2px; }
 .sheet-head { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
 .sheet-head :deep(.p-inputtext),
 .sheet-head :deep(.p-inputnumber),
