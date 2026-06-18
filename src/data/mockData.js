@@ -33,6 +33,12 @@ export const UNITS = [
   { id: 'U10', code: 'SET',  name: 'ชุด',         abbr: 'set'  },
 ]
 
+export const MIXSIZES = [
+  { id: 'MX01', size: 30, unitId: 'U01' },
+  { id: 'MX02', size: 40, unitId: 'U01' },
+  { id: 'MX03', size: 50, unitId: 'U01' },
+]
+
 export const SUPPLIERS = [
   { id: 'SUP001', code: 'SUP001', name: 'บริษัท อาหารสด จำกัด',       contact: 'คุณสมชาย', phone: '02-111-1111', active: true },
   { id: 'SUP002', code: 'SUP002', name: 'บริษัท เคมีภัณฑ์ไทย จำกัด',  contact: 'คุณสมหญิง', phone: '02-222-2222', active: true },
@@ -206,40 +212,77 @@ export const FORMULAS = [
   {
     id: 'FML001', code: 'FML-001', name: 'ไก่กระป๋องในซอสมะเขือเทศ', machineType: 'sauce',
     semiProductId: 'P016', outputProductId: 'P017',
-    outputQtyPerBatch: 1000, outputUnit: 'pcs',
+    mixsizeIds: ['MX01', 'MX02'],
+    bomByMixsize: {
+      MX01: {
+        premix: [{ productId: 'P004', qtyPerBatch: 15, unitId: 'U01' }],
+        ingredients: [
+          { productId: 'P001', qtyPerBatch: 80,  unitId: 'U01' },
+          { productId: 'P006', qtyPerBatch: 500, unitId: 'U02' },
+          { productId: 'P007', qtyPerBatch: 200, unitId: 'U02' },
+        ],
+      },
+      MX02: {
+        premix: [{ productId: 'P004', qtyPerBatch: 20, unitId: 'U01' }],
+        ingredients: [
+          { productId: 'P001', qtyPerBatch: 100, unitId: 'U01' },
+          { productId: 'P006', qtyPerBatch: 650, unitId: 'U02' },
+          { productId: 'P007', qtyPerBatch: 260, unitId: 'U02' },
+        ],
+      },
+    },
     ingredients: [
       { productId: 'P001', qtyPerBatch: 80,  unitId: 'U01' },
       { productId: 'P004', qtyPerBatch: 15,  unitId: 'U01' },
       { productId: 'P006', qtyPerBatch: 500, unitId: 'U02' },
       { productId: 'P007', qtyPerBatch: 200, unitId: 'U02' },
     ],
-    labelName: 'ไก่กระป๋องในซอสมะเขือเทศ 300g', labelWeight: 300, labelWeightUnit: 'g',
     active: true, createdAt: '2024-06-01T00:00:00',
   },
   {
     id: 'FML002', code: 'FML-002', name: 'หมูสับผสมแครอท', machineType: 'meat',
     semiProductId: null, outputProductId: null,
-    outputQtyPerBatch: 800, outputUnit: 'kg',
+    mixsizeIds: ['MX02'],
+    bomByMixsize: {
+      MX02: {
+        premix: [],
+        ingredients: [
+          { productId: 'P002', qtyPerBatch: 60,  unitId: 'U01' },
+          { productId: 'P003', qtyPerBatch: 20,  unitId: 'U01' },
+          { productId: 'P020', qtyPerBatch: 300, unitId: 'U02' },
+          { productId: 'P019', qtyPerBatch: 5,   unitId: 'U01' },
+        ],
+      },
+    },
     ingredients: [
       { productId: 'P002', qtyPerBatch: 60,  unitId: 'U01' },
       { productId: 'P003', qtyPerBatch: 20,  unitId: 'U01' },
       { productId: 'P020', qtyPerBatch: 300, unitId: 'U02' },
       { productId: 'P019', qtyPerBatch: 5,   unitId: 'U01' },
     ],
-    labelName: 'หมูสับผสมแครอท 500g', labelWeight: 500, labelWeightUnit: 'g',
     active: true, createdAt: '2024-06-02T00:00:00',
   },
   {
     id: 'FML003', code: 'FML-003', name: 'ไก่ผสมเครื่องเทศ', machineType: 'meat',
     semiProductId: null, outputProductId: null,
-    outputQtyPerBatch: 1200, outputUnit: 'pcs',
+    mixsizeIds: ['MX01'],
+    bomByMixsize: {
+      MX01: {
+        premix: [],
+        ingredients: [
+          { productId: 'P001', qtyPerBatch: 90,  unitId: 'U01' },
+          { productId: 'P018', qtyPerBatch: 10,  unitId: 'U01' },
+          { productId: 'P019', qtyPerBatch: 3,   unitId: 'U01' },
+          { productId: 'P006', qtyPerBatch: 200, unitId: 'U02' },
+        ],
+      },
+    },
     ingredients: [
       { productId: 'P001', qtyPerBatch: 90,  unitId: 'U01' },
       { productId: 'P018', qtyPerBatch: 10,  unitId: 'U01' },
       { productId: 'P019', qtyPerBatch: 3,   unitId: 'U01' },
       { productId: 'P006', qtyPerBatch: 200, unitId: 'U02' },
     ],
-    labelName: 'ไก่ผสมเครื่องเทศ 250g', labelWeight: 250, labelWeightUnit: 'g',
     active: true, createdAt: '2024-06-03T00:00:00',
   },
 ]
