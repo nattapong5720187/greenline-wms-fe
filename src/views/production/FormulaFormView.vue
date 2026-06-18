@@ -182,10 +182,10 @@
           <div class="section-title" style="margin-bottom: 0">
             <i class="pi pi-bolt ic-premix" /> Premix — {{ getBom(activeMixsizeId).premix.length }} รายการ
           </div>
-          <Button label="+ เพิ่ม Premix" icon="pi pi-plus" size="small" outlined @click="addPremix(activeMixsizeId)" />
+          <Button label="เพิ่ม Premix" icon="pi pi-plus" size="small" outlined @click="addPremix(activeMixsizeId)" />
         </div>
         <div v-if="getBom(activeMixsizeId).premix.length === 0" class="empty-bom">
-          ยังไม่มี Premix — กดปุ่ม "+ เพิ่ม Premix" เพื่อเริ่มต้น
+          ยังไม่มี Premix — กดปุ่ม "เพิ่ม Premix" เพื่อเริ่มต้น
         </div>
         <div v-else>
           <div class="bom-header">
@@ -244,7 +244,7 @@
             {{ getBom(activeMixsizeId).ingredients.length }} รายการ
           </div>
           <Button
-            label="+ เพิ่มวัตถุดิบ"
+            label="เพิ่มวัตถุดิบ"
             icon="pi pi-plus"
             size="small"
             outlined
@@ -252,7 +252,7 @@
           />
         </div>
         <div v-if="getBom(activeMixsizeId).ingredients.length === 0" class="empty-bom">
-          ยังไม่มีวัตถุดิบ — กดปุ่ม "+ เพิ่มวัตถุดิบ" เพื่อเริ่มต้น
+          ยังไม่มีวัตถุดิบ — กดปุ่ม "เพิ่มวัตถุดิบ" เพื่อเริ่มต้น
         </div>
         <div v-else>
           <div class="bom-header">

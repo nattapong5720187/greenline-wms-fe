@@ -44,13 +44,39 @@ export const useProductionStore = defineStore('production', () => {
     })
   }
 
-  function createOrder(formulaId, batches) {
-    const ingredients = matchLots(formulaId, batches)
+  // Build the raw-material list for one mix of the selected mix size, then
+  // FIFO-match available lots for each item.
+  function matchLotsForMixsize(formulaId, mixsizeId) {
+    const stockStore = useStockStore()
+    const formula = getFormulaById(formulaId)
+    if (!formula) return []
+    const bom = formula.bomByMixsize?.[mixsizeId]
+    const items = bom ? [...(bom.premix || []), ...(bom.ingredients || [])] : (formula.ingredients || [])
+    return items.map(ing => {
+      const qtyRequired = ing.qtyPerBatch
+      const fifoLots = stockStore.getLotsForProduct(ing.productId)
+      let remaining = qtyRequired
+      const lotAssignments = []
+      for (const lot of fifoLots) {
+        if (remaining <= 0) break
+        const take = Math.min(lot.remaining, remaining)
+        if (take > 0) {
+          lotAssignments.push({ lotId: lot.id, lotNo: lot.lotNo, qty: take })
+          remaining -= take
+        }
+      }
+      return { productId: ing.productId, qtyRequired, lotAssignments }
+    })
+  }
+
+  function createOrder(formulaId, mixsizeId) {
+    const ingredients = matchLotsForMixsize(formulaId, mixsizeId)
     const order = {
       id: makeId('PO'),
       docNo: generatePONo(),
       formulaId,
-      plannedBatches: batches,
+      mixsizeId,
+      plannedBatches: 1,
       status: 'confirmed',
       ingredients,
       processData: null,
@@ -192,6 +218,6 @@ export const useProductionStore = defineStore('production', () => {
     getFormulaById, addFormula, updateFormula, deleteFormula,
     createOrder, setIngredients, startProcessing, completeProcessing, completeMixing,
     completeFilling, receiveSemi, cancelOrder,
-    matchLots,
+    matchLots, matchLotsForMixsize,
   }
 })

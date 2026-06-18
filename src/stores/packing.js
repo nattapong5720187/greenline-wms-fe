@@ -10,13 +10,31 @@ export const usePackingStore = defineStore('packing', () => {
   function getById(id) { return packings.value.find(p => p.id === id) }
 
   function createPacking(data) {
+    // Support both the multi-row shape ({ inputs, outputs }) and the legacy
+    // single-row shape ({ semiProductId, inputQty, fgQty, rejectedQty }).
+    const inputs = (data.inputs && data.inputs.length)
+      ? data.inputs.map(i => ({ semiProductId: i.semiProductId, inputQty: Number(i.inputQty) || 0 }))
+      : [{ semiProductId: data.semiProductId, inputQty: Number(data.inputQty) || 0 }]
+    const outputs = (data.outputs && data.outputs.length)
+      ? data.outputs.map(o => ({
+          productId: o.productId, fgQty: Number(o.fgQty) || 0, rejectedQty: Number(o.rejectedQty) || 0,
+        }))
+      : [{ productId: data.semiProductId, fgQty: Number(data.fgQty) || 0, rejectedQty: Number(data.rejectedQty) || 0 }]
+
+    const inputQty = inputs.reduce((s, i) => s + i.inputQty, 0)
+    const fgQty = outputs.reduce((s, o) => s + o.fgQty, 0)
+    const rejectedQty = outputs.reduce((s, o) => s + o.rejectedQty, 0)
+
     const rec = {
       id: makeId('PK'),
       docNo: generatePackNo(),
-      semiProductId: data.semiProductId,
-      inputQty: data.inputQty,
-      fgQty: data.fgQty,
-      rejectedQty: data.rejectedQty,
+      inputs,
+      outputs,
+      // aggregate fields kept for list/counts and backward compatibility
+      semiProductId: inputs[0]?.semiProductId || null,
+      inputQty,
+      fgQty,
+      rejectedQty,
       warehouseId: data.warehouseId || 'WH02',
       note: data.note || '',
       status: 'done',

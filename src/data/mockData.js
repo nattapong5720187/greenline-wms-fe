@@ -306,7 +306,7 @@ export const generatePONo = () => {
 
 export const PRODUCTION_ORDERS = [
   {
-    id: 'PO001', docNo: 'PO-240603-001', formulaId: 'FML001', plannedBatches: 3,
+    id: 'PO001', docNo: 'PO-240603-001', formulaId: 'FML001', mixsizeId: 'MX01', plannedBatches: 3,
     status: 'done',
     ingredients: [
       { productId: 'P001', qtyRequired: 240, lotAssignments: [{ lotId: 'LOT001', lotNo: 'LOT-2024-0601-001', qty: 240 }] },
@@ -322,7 +322,7 @@ export const PRODUCTION_ORDERS = [
     createdBy: 'USR001',
   },
   {
-    id: 'PO002', docNo: 'PO-240605-001', formulaId: 'FML002', plannedBatches: 2,
+    id: 'PO002', docNo: 'PO-240605-001', formulaId: 'FML002', mixsizeId: 'MX02', plannedBatches: 2,
     status: 'mixing',
     ingredients: [
       { productId: 'P002', qtyRequired: 120, lotAssignments: [{ lotId: 'LOT003', lotNo: 'LOT-2024-0601-002', qty: 120 }] },
@@ -336,7 +336,7 @@ export const PRODUCTION_ORDERS = [
     createdBy: 'USR002',
   },
   {
-    id: 'PO003', docNo: 'PO-240606-001', formulaId: 'FML001', plannedBatches: 5,
+    id: 'PO003', docNo: 'PO-240606-001', formulaId: 'FML001', mixsizeId: 'MX02', plannedBatches: 5,
     status: 'confirmed',
     ingredients: [
       { productId: 'P001', qtyRequired: 400, lotAssignments: [{ lotId: 'LOT002', lotNo: 'LOT-2024-0605-001', qty: 400 }] },

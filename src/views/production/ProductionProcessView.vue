@@ -512,10 +512,6 @@ function doStartProcessing() {
 }
 
 function doCompleteProcessing() {
-  if (!processQty.value || processQty.value <= 0) {
-    toast.add({ severity: "warn", summary: "กรุณาระบุปริมาณเนื้อที่แปรรูปได้", life: 3000 });
-    return;
-  }
   productionStore.completeProcessing(order.value.id, {
     qty: processQty.value, temp: processTemp.value, note: processNote.value,
   });
@@ -533,10 +529,6 @@ function doCompleteMixing() {
 }
 
 function doCompleteFilling() {
-  if (!fillSemiQty.value || fillSemiQty.value <= 0) {
-    toast.add({ severity: "warn", summary: "กรุณาระบุปริมาณ Semi", life: 3000 });
-    return;
-  }
   productionStore.completeFilling(order.value.id, {
     semiQty: fillSemiQty.value, packCount: fillPackCount.value,
     expiry: fillExpiry.value || null, note: fillNote.value,

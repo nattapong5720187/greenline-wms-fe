@@ -44,14 +44,8 @@
             <div style="font-weight:500;">{{ getFormulaName(data.formulaId) }}</div>
           </template>
         </Column>
-        <Column header="Batch" style="width:80px; text-align:center;">
-          <template #body="{ data }">{{ data.plannedBatches }}</template>
-        </Column>
-        <Column header="Output รวม" style="width:130px;">
-          <template #body="{ data }">
-            <strong v-if="data.actualOutput" style="color:#166534">{{ data.actualOutput.toLocaleString() }}</strong>
-            <span v-else style="color:var(--gl-text-muted)">—</span>
-          </template>
+        <Column header="ขนาด Mix" style="width:110px; text-align:center;">
+          <template #body="{ data }">{{ mixsizeLabel(data.mixsizeId) }}</template>
         </Column>
         <Column header="สถานะ" style="width:140px;">
           <template #body="{ data }">
@@ -87,24 +81,15 @@
             filter placeholder="เลือกสูตร..." style="width:100%;" @change="onFormulaChange" />
         </div>
 
-        <div v-if="createForm.formulaId" class="formula-preview">
-          <div class="preview-row">
-            <span>ส่วนผสม:</span>
-            <strong>{{ getIngredientCount(createForm.formulaId) }} รายการ</strong>
-          </div>
-          <div class="preview-row">
-            <span>Output / Batch:</span>
-            <strong>{{ getOutputPerBatch(createForm.formulaId) }}</strong>
-          </div>
-        </div>
-
         <div class="form-field">
-          <label>จำนวน Batch <span class="req">*</span></label>
-          <InputNumber v-model="createForm.batches" :min="1" :max="100" style="width:100%;" showButtons />
+          <label>ขนาด Mix (Mix size) <span class="req">*</span></label>
+          <Dropdown v-model="createForm.mixsizeId" :options="mixsizeOptions"
+            optionLabel="label" optionValue="value"
+            :disabled="!createForm.formulaId" placeholder="เลือกขนาด Mix..." style="width:100%;" />
         </div>
 
-        <div v-if="createForm.formulaId && createForm.batches" class="total-preview">
-          Output รวมโดยประมาณ: <strong>{{ getEstimatedOutput(createForm.formulaId, createForm.batches) }}</strong>
+        <div v-if="createForm.formulaId && createForm.mixsizeId" class="total-preview">
+          ส่วนผสมตามสูตร: <strong>{{ getIngredientCount(createForm.formulaId, createForm.mixsizeId) }} รายการ</strong>
         </div>
       </div>
       <template #footer>
@@ -121,22 +106,23 @@ import { useRouter } from 'vue-router'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useProductionStore } from '@/stores/production'
+import { useMasterStore } from '@/stores/master'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dialog from 'primevue/dialog'
-import InputNumber from 'primevue/inputnumber'
 
 const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
 const productionStore = useProductionStore()
+const masterStore = useMasterStore()
 
 const filterStatus = ref(null)
 const filterFormula = ref(null)
 const showCreate = ref(false)
-const createForm = ref({ formulaId: null, batches: 1 })
+const createForm = ref({ formulaId: null, mixsizeId: null })
 
 const statusOptions = [
   { label: 'ยืนยันแล้ว', value: 'confirmed' },
@@ -164,14 +150,22 @@ const filtered = computed(() =>
 
 function getFormula(id) { return productionStore.getFormulaById(id) }
 function getFormulaName(id) { return getFormula(id)?.name || '—' }
-function getIngredientCount(id) { return getFormula(id)?.ingredients.length || 0 }
-function getOutputPerBatch(id) {
-  const f = getFormula(id)
-  return f ? `${f.outputQtyPerBatch.toLocaleString()} ${f.outputUnit}` : '—'
+
+function mixsizeLabel(id) {
+  const mx = masterStore.getMixsizeById(id)
+  if (!mx) return '—'
+  return `${mx.size.toLocaleString()} ${masterStore.getUnitById(mx.unitId)?.abbr || ''}`.trim()
 }
-function getEstimatedOutput(id, batches) {
-  const f = getFormula(id)
-  return f ? `${(f.outputQtyPerBatch * batches).toLocaleString()} ${f.outputUnit}` : '—'
+
+const mixsizeOptions = computed(() => {
+  const f = getFormula(createForm.value.formulaId)
+  return (f?.mixsizeIds || []).map(id => ({ label: mixsizeLabel(id), value: id }))
+})
+
+function getIngredientCount(formulaId, mixsizeId) {
+  const bom = getFormula(formulaId)?.bomByMixsize?.[mixsizeId]
+  if (bom) return (bom.premix?.length || 0) + (bom.ingredients?.length || 0)
+  return getFormula(formulaId)?.ingredients?.length || 0
 }
 function statusLabel(s) {
   return { confirmed: 'ยืนยันแล้ว', processing: 'กำลังแปรรูป', mixing: 'กำลังผสม', packing: 'กำลังบรรจุ', receiving: 'รอรับเข้า Semi', done: 'เสร็จสิ้น', cancelled: 'ยกเลิก' }[s] || s
@@ -182,17 +176,24 @@ function formatDate(dt) {
 }
 
 function openCreate() {
-  createForm.value = { formulaId: null, batches: 1 }
+  createForm.value = { formulaId: null, mixsizeId: null }
   showCreate.value = true
 }
-function onFormulaChange() { createForm.value.batches = 1 }
+function onFormulaChange() {
+  // default to the formula's first mix size, if any
+  createForm.value.mixsizeId = mixsizeOptions.value[0]?.value ?? null
+}
 
 function doCreate() {
   if (!createForm.value.formulaId) {
     toast.add({ severity: 'warn', summary: 'กรุณาเลือกสูตร', life: 3000 })
     return
   }
-  const order = productionStore.createOrder(createForm.value.formulaId, createForm.value.batches)
+  if (!createForm.value.mixsizeId) {
+    toast.add({ severity: 'warn', summary: 'กรุณาเลือกขนาด Mix', life: 3000 })
+    return
+  }
+  const order = productionStore.createOrder(createForm.value.formulaId, createForm.value.mixsizeId)
   showCreate.value = false
   toast.add({ severity: 'success', summary: 'สร้างใบสั่งผลิตสำเร็จ', detail: order.docNo, life: 3000 })
   router.push(`/production/process/${order.id}`)

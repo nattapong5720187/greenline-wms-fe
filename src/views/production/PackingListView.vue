@@ -30,12 +30,14 @@
         <Column field="docNo" header="เลขที่" style="width:160px; font-family:monospace; font-size:12px;" sortable />
         <Column header="สินค้า Semi (Input)">
           <template #body="{ data }">
-            <div style="font-weight:500;">{{ productName(data.semiProductId) }}</div>
-            <div class="code-sub">{{ productCode(data.semiProductId) }}</div>
+            <div v-for="(inp, i) in inputList(data)" :key="i" class="input-line">
+              <span style="font-weight:500;">{{ productName(inp.semiProductId) }}</span>
+              <span class="code-sub"> · {{ productCode(inp.semiProductId) }}</span>
+            </div>
           </template>
         </Column>
         <Column header="นำเข้า" style="width:120px; text-align:right;">
-          <template #body="{ data }">{{ data.inputQty.toLocaleString() }} {{ unitOf(data.semiProductId) }}</template>
+          <template #body="{ data }">{{ (data.inputQty || 0).toLocaleString() }} {{ unitOf(inputList(data)[0]?.semiProductId) }}</template>
         </Column>
         <Column header="FG (ดี)" style="width:120px; text-align:right;">
           <template #body="{ data }">
@@ -74,6 +76,10 @@ const router = useRouter()
 const packingStore = usePackingStore()
 const masterStore = useMasterStore()
 
+function inputList(data) {
+  if (data.inputs && data.inputs.length) return data.inputs
+  return [{ semiProductId: data.semiProductId, inputQty: data.inputQty }]
+}
 function productName(id) { return masterStore.getProductById(id)?.name || '—' }
 function productCode(id) { return masterStore.getProductById(id)?.code || '—' }
 function unitOf(id) {
@@ -97,6 +103,8 @@ function formatDate(dt) {
 .stat-chip.fg .chip-num       { color: #10b981; }
 .stat-chip.rejected .chip-num { color: #ef4444; }
 .code-sub { font-size: 11px; color: var(--gl-text-muted); font-family: monospace; }
+.input-line { line-height: 1.5; }
+.input-line:not(:last-child) { border-bottom: 1px dashed #eef2f6; padding-bottom: 2px; margin-bottom: 2px; }
 .pk-badge {
   display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 500;
 }
