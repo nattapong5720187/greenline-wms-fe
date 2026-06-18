@@ -22,6 +22,7 @@ const routes = [
       { path: 'master/products/:id/edit', name: 'ProductEdit', component: () => import('@/views/master/ProductFormView.vue') },
       { path: 'master/categories', name: 'Categories', component: () => import('@/views/master/CategoryView.vue') },
       { path: 'master/units', name: 'Units', component: () => import('@/views/master/UnitView.vue') },
+      { path: 'master/mixsizes', name: 'Mixsizes', component: () => import('@/views/master/MixsizeView.vue') },
       { path: 'master/warehouses', name: 'Warehouses', component: () => import('@/views/master/WarehouseView.vue') },
       { path: 'master/suppliers', name: 'Suppliers', component: () => import('@/views/master/SupplierView.vue') },
       { path: 'master/machines', name: 'Machines', component: () => import('@/views/master/MachineView.vue') },

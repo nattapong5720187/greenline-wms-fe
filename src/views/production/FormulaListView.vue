@@ -28,14 +28,14 @@
         <Column header="ส่วนผสม" style="width:100px; text-align:center;">
           <template #body="{ data }">{{ data.ingredients.length }} รายการ</template>
         </Column>
-        <Column header="Output / Batch" style="width:150px;">
+        <Column header="Mixsize" style="width:200px;">
           <template #body="{ data }">
-            {{ data.outputQtyPerBatch.toLocaleString() }} {{ data.outputUnit }}
-          </template>
-        </Column>
-        <Column header="ฉลาก" style="width:130px;">
-          <template #body="{ data }">
-            <span style="font-size:12px; color:var(--gl-text-muted)">{{ data.labelWeight }} {{ data.labelWeightUnit }}</span>
+            <span v-if="!data.mixsizeIds || data.mixsizeIds.length === 0" style="color:var(--gl-text-muted); font-size:12px;">-</span>
+            <div v-else style="display:flex; flex-wrap:wrap; gap:4px;">
+              <span v-for="id in data.mixsizeIds" :key="id" class="mixsize-chip">
+                {{ getMixsizeLabel(id) }}
+              </span>
+            </div>
           </template>
         </Column>
         <Column header="สถานะ" style="width:100px;">
@@ -65,6 +65,7 @@ import { ref, computed } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useProductionStore } from '@/stores/production'
+import { useMasterStore } from '@/stores/master'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
@@ -72,8 +73,16 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 
 const productionStore = useProductionStore()
+const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
+
+function getMixsizeLabel(mixsizeId) {
+  const mx = masterStore.getMixsizeById(mixsizeId)
+  if (!mx) return mixsizeId
+  const unit = masterStore.getUnitById(mx.unitId)
+  return `${mx.size.toLocaleString()} ${unit?.abbr || ''}`
+}
 
 const search = ref('')
 const filterActive = ref(null)
@@ -110,4 +119,13 @@ function confirmDelete(formula) {
 .search-wrap { display: flex; align-items: center; position: relative; }
 .search-wrap i { position: absolute; left: 0.75rem; z-index: 1; color: var(--gl-text-muted); }
 .action-btns { display: flex; gap: 4px; }
+.mixsize-chip {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 </style>

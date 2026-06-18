@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
-  WAREHOUSES, CATEGORIES, UNITS, SUPPLIERS, PRODUCTS, USERS, MACHINES
+  WAREHOUSES, CATEGORIES, UNITS, SUPPLIERS, PRODUCTS, USERS, MACHINES, MIXSIZES
 } from '@/data/mockData'
 
 function makeId(prefix) {
@@ -12,6 +12,7 @@ export const useMasterStore = defineStore('master', () => {
   const warehouses = ref([...WAREHOUSES])
   const categories = ref([...CATEGORIES])
   const units = ref([...UNITS])
+  const mixsizes = ref([...MIXSIZES])
   const suppliers = ref([...SUPPLIERS])
   const products = ref([...PRODUCTS])
   const users = ref([...USERS])
@@ -52,6 +53,19 @@ export const useMasterStore = defineStore('master', () => {
   function deleteUnit(id) {
     units.value = units.value.filter(u => u.id !== id)
   }
+
+  // ---- Mixsizes ----
+  function addMixsize(data) {
+    mixsizes.value.push({ ...data, id: makeId('MX') })
+  }
+  function updateMixsize(id, data) {
+    const i = mixsizes.value.findIndex(m => m.id === id)
+    if (i !== -1) mixsizes.value[i] = { ...mixsizes.value[i], ...data }
+  }
+  function deleteMixsize(id) {
+    mixsizes.value = mixsizes.value.filter(m => m.id !== id)
+  }
+  function getMixsizeById(id) { return mixsizes.value.find(m => m.id === id) }
 
   // ---- Suppliers ----
   function addSupplier(data) {
@@ -110,10 +124,11 @@ export const useMasterStore = defineStore('master', () => {
   function getMachineById(id) { return machines.value.find(m => m.id === id) }
 
   return {
-    warehouses, categories, units, suppliers, products, users, machines,
+    warehouses, categories, units, suppliers, products, users, machines, mixsizes,
     addWarehouse, updateWarehouse, deleteWarehouse,
     addCategory, updateCategory, deleteCategory,
     addUnit, updateUnit, deleteUnit,
+    addMixsize, updateMixsize, deleteMixsize, getMixsizeById,
     addSupplier, updateSupplier, deleteSupplier,
     addProduct, updateProduct, deleteProduct,
     addUser, updateUser, deleteUser,
