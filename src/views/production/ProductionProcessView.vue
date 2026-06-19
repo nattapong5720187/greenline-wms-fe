@@ -138,9 +138,23 @@
               <tr v-for="(row, idx) in sauce.rows" :key="idx">
                 <td class="no-col">{{ idx + 1 }}</td>
                 <td v-for="c in sauce.columns" :key="c.key">
-                  <input v-model="row.starts[c.key]" type="time" class="cell-input" title="เวลาเริ่ม (Start)" />
+                  <div
+                    :class="['cell-time-btn', { locked: !!row.starts[c.key] }]"
+                    @click.stop="togglePicker(`sauce-${idx}-${c.key}`, row, c.key, $event)"
+                  >
+                    <span>{{ row.starts[c.key] || '--:--' }}</span>
+                    <i v-if="!row.starts[c.key]" class="pi pi-clock" />
+                  </div>
                 </td>
-                <td><input v-model="row.end" type="time" class="cell-input" /></td>
+                <td>
+                  <div
+                    :class="['cell-time-btn', { 'has-value': !!row.end }]"
+                    @click.stop="toggleEndPicker(`sauce-end-${idx}`, row, $event)"
+                  >
+                    <span>{{ row.end || '--:--' }}</span>
+                    <i :class="row.end ? 'pi pi-pencil' : 'pi pi-clock'" />
+                  </div>
+                </td>
                 <td class="act-col">
                   <button v-if="sauce.rows.length > 1" class="row-del" title="ลบรอบนี้" @click="sauce.rows.splice(idx, 1)">
                     <i class="pi pi-trash" />
@@ -192,9 +206,23 @@
               <tr v-for="(row, idx) in meat.rows" :key="idx">
                 <td class="no-col">{{ idx + 1 }}</td>
                 <td v-for="c in meat.columns" :key="c.key">
-                  <input v-model="row.starts[c.key]" type="time" class="cell-input" title="เวลาเริ่ม (Start)" />
+                  <div
+                    :class="['cell-time-btn', { locked: !!row.starts[c.key] }]"
+                    @click.stop="togglePicker(`meat-${idx}-${c.key}`, row, c.key, $event)"
+                  >
+                    <span>{{ row.starts[c.key] || '--:--' }}</span>
+                    <i v-if="!row.starts[c.key]" class="pi pi-clock" />
+                  </div>
                 </td>
-                <td><input v-model="row.end" type="time" class="cell-input" /></td>
+                <td>
+                  <div
+                    :class="['cell-time-btn', { 'has-value': !!row.end }]"
+                    @click.stop="toggleEndPicker(`meat-end-${idx}`, row, $event)"
+                  >
+                    <span>{{ row.end || '--:--' }}</span>
+                    <i :class="row.end ? 'pi pi-pencil' : 'pi pi-clock'" />
+                  </div>
+                </td>
                 <td><input v-model.number="row.temp" type="number" step="0.1" class="cell-input" /></td>
                 <td class="act-col">
                   <button v-if="meat.rows.length > 1" class="row-del" title="ลบรอบนี้" @click="meat.rows.splice(idx, 1)">
@@ -255,6 +283,31 @@
   <div v-else class="page-card" style="text-align: center; padding: 40px; color: var(--gl-text-muted)">
     ไม่พบใบสั่งผลิต
   </div>
+
+  <!-- Time picker dropdown (teleported to body to escape table overflow) -->
+  <Teleport to="body">
+    <div
+      v-if="openPickerId"
+      class="time-drop"
+      :style="{ top: pickerPos.top + 'px', left: pickerPos.left + 'px' }"
+      @click.stop
+    >
+      <div class="td-label">เวลาปัจจุบัน</div>
+      <div class="td-time">{{ liveTime }}</div>
+      <button class="td-save-btn" @click="saveTime">
+        <i class="pi pi-check" /> บันทึก
+      </button>
+      <template v-if="pickerMode === 'end'">
+        <div class="td-divider">หรือเลือกเวลา</div>
+        <div class="td-manual">
+          <input v-model="manualEndTime" type="time" class="td-time-input" @click.stop />
+          <button class="td-confirm-btn" @click="saveManualTime">
+            <i class="pi pi-check" /> ยืนยัน
+          </button>
+        </div>
+      </template>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -266,7 +319,7 @@ import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -346,6 +399,73 @@ function addSauceRow() { sauce.rows.push(makeSauceRow()); }
 function addMeatRow() { meat.rows.push(makeMeatRow()); }
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
+function nowHHMM() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+// ---- time picker dropdown ----
+const openPickerId = ref(null);
+const liveTime = ref('');
+const pickerPos = reactive({ top: 0, left: 0 });
+const pickerMode = ref('start'); // 'start' | 'end'
+const manualEndTime = ref('');
+let liveTimer = null;
+let _activeRow = null;
+let _activeKey = null;
+
+function _openPicker(id, event) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  pickerPos.top = rect.bottom + 6;
+  pickerPos.left = rect.left + rect.width / 2;
+  openPickerId.value = id;
+  liveTime.value = nowHHMM();
+  liveTimer = setInterval(() => { liveTime.value = nowHHMM(); }, 1000);
+}
+
+function togglePicker(id, row, key, event) {
+  if (row.starts[key]) return; // already locked, ignore
+  if (openPickerId.value === id) { closePicker(); return; }
+  _activeRow = row;
+  _activeKey = key;
+  pickerMode.value = 'start';
+  _openPicker(id, event);
+}
+
+function toggleEndPicker(id, row, event) {
+  if (openPickerId.value === id) { closePicker(); return; }
+  _activeRow = row;
+  _activeKey = 'end';
+  pickerMode.value = 'end';
+  manualEndTime.value = row.end || '';
+  _openPicker(id, event);
+}
+
+function closePicker() {
+  openPickerId.value = null;
+  liveTime.value = '';
+  pickerMode.value = 'start';
+  manualEndTime.value = '';
+  _activeRow = null;
+  _activeKey = null;
+  if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+}
+
+function saveTime() {
+  if (_activeRow) {
+    if (pickerMode.value === 'end') _activeRow.end = nowHHMM();
+    else if (_activeKey) _activeRow.starts[_activeKey] = nowHHMM();
+  }
+  closePicker();
+}
+
+function saveManualTime() {
+  if (_activeRow && manualEndTime.value) _activeRow.end = manualEndTime.value;
+  closePicker();
+}
+
+onMounted(() => document.addEventListener('click', closePicker));
+onUnmounted(() => { document.removeEventListener('click', closePicker); closePicker(); });
 
 function initMix() {
   if (!order.value) return;
@@ -659,6 +779,23 @@ function doReceiveSemi() {
   background: #fff; border-color: #84cc16;
   box-shadow: inset 0 0 0 3px rgba(132, 204, 22, 0.13); border-radius: 8px;
 }
+/* start-time cell trigger */
+.cell-time-btn {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  width: 100%; padding: 13px 8px; cursor: pointer;
+  font-size: 13px; color: #94a3b8; user-select: none; transition: background 0.12s;
+}
+.cell-time-btn:hover { background: #f8fafc; }
+.cell-time-btn .pi-clock { font-size: 11px; }
+.cell-time-btn.locked {
+  color: #166534; font-weight: 700; background: #f0fdf4; cursor: default;
+}
+.cell-time-btn.locked:hover { background: #f0fdf4; }
+.cell-time-btn.has-value {
+  color: #166534; font-weight: 700; background: #f0fdf4;
+}
+.cell-time-btn.has-value:hover { background: #dcfce7; }
+.cell-time-btn.has-value .pi-pencil { font-size: 10px; opacity: 0.55; }
 
 /* row delete (reveals on hover) */
 .mix-sheet tbody .act-col { background: #fff; }
@@ -732,4 +869,59 @@ function doReceiveSemi() {
 .po-badge.receiving { background: #cffafe; color: #0e7490; }
 .po-badge.done { background: #dcfce7; color: #166534; }
 .po-badge.cancelled { background: #fee2e2; color: #991b1b; }
+</style>
+
+<style>
+/* Teleported time-picker dropdown — global so it escapes scoped */
+.time-drop {
+  position: fixed;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.14);
+  padding: 18px 22px;
+  z-index: 9999;
+  min-width: 180px;
+  text-align: center;
+}
+.td-label {
+  font-size: 11px; color: #64748b; font-weight: 600;
+  letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 8px;
+}
+.td-time {
+  font-size: 34px; font-weight: 800; color: #1e2a3b;
+  letter-spacing: 4px; margin-bottom: 16px;
+  font-family: 'Courier New', monospace;
+}
+.td-save-btn {
+  width: 100%; padding: 10px 14px;
+  background: #1e2a3b; color: #fff;
+  border: none; border-radius: 9px; cursor: pointer;
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  transition: background 0.12s;
+}
+.td-save-btn:hover { background: #0f172a; }
+.td-divider {
+  font-size: 11px; color: #94a3b8; margin: 14px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.td-divider::before, .td-divider::after {
+  content: ''; flex: 1; height: 1px; background: #e2e8f0;
+}
+.td-manual { display: flex; gap: 8px; align-items: center; }
+.td-time-input {
+  flex: 1; height: 36px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+  padding: 0 8px; font-size: 14px; color: #1e2a3b; outline: none; font-family: inherit;
+  min-width: 0;
+}
+.td-time-input:focus { border-color: #84cc16; box-shadow: 0 0 0 2px rgba(132,204,22,0.15); }
+.td-confirm-btn {
+  height: 36px; padding: 0 12px; background: #64748b; color: #fff;
+  border: none; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  transition: background 0.12s; flex-shrink: 0;
+}
+.td-confirm-btn:hover { background: #475569; }
 </style>
