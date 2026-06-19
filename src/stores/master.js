@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
-  WAREHOUSES, CATEGORIES, UNITS, SUPPLIERS, PRODUCTS, USERS, MACHINES, MIXSIZES
+  WAREHOUSES, CATEGORIES, UNITS, SUPPLIERS, PRODUCTS, USERS, MACHINES, MIXSIZES,
+  PACKAGING_SIZES, BRANDS
 } from '@/data/mockData'
 
 function makeId(prefix) {
@@ -17,6 +18,8 @@ export const useMasterStore = defineStore('master', () => {
   const products = ref([...PRODUCTS])
   const users = ref([...USERS])
   const machines = ref([...MACHINES])
+  const packagingSizes = ref([...PACKAGING_SIZES])
+  const brands = ref([...BRANDS])
 
   // ---- Warehouses ----
   function addWarehouse(data) {
@@ -115,6 +118,32 @@ export const useMasterStore = defineStore('master', () => {
     machines.value = machines.value.filter(m => m.id !== id)
   }
 
+  // ---- Packaging Sizes ----
+  function addPackagingSize(data) {
+    packagingSizes.value.push({ ...data, id: makeId('PKG') })
+  }
+  function updatePackagingSize(id, data) {
+    const i = packagingSizes.value.findIndex(p => p.id === id)
+    if (i !== -1) packagingSizes.value[i] = { ...packagingSizes.value[i], ...data }
+  }
+  function deletePackagingSize(id) {
+    packagingSizes.value = packagingSizes.value.filter(p => p.id !== id)
+  }
+  function getPackagingSizeById(id) { return packagingSizes.value.find(p => p.id === id) }
+
+  // ---- Brands ----
+  function addBrand(data) {
+    brands.value.push({ ...data, id: makeId('BR') })
+  }
+  function updateBrand(id, data) {
+    const i = brands.value.findIndex(b => b.id === id)
+    if (i !== -1) brands.value[i] = { ...brands.value[i], ...data }
+  }
+  function deleteBrand(id) {
+    brands.value = brands.value.filter(b => b.id !== id)
+  }
+  function getBrandById(id) { return brands.value.find(b => b.id === id) }
+
   // ---- Helpers ----
   function getCategoryById(id) { return categories.value.find(c => c.id === id) }
   function getUnitById(id) { return units.value.find(u => u.id === id) }
@@ -125,6 +154,7 @@ export const useMasterStore = defineStore('master', () => {
 
   return {
     warehouses, categories, units, suppliers, products, users, machines, mixsizes,
+    packagingSizes, brands,
     addWarehouse, updateWarehouse, deleteWarehouse,
     addCategory, updateCategory, deleteCategory,
     addUnit, updateUnit, deleteUnit,
@@ -133,6 +163,8 @@ export const useMasterStore = defineStore('master', () => {
     addProduct, updateProduct, deleteProduct,
     addUser, updateUser, deleteUser,
     addMachine, updateMachine, deleteMachine,
+    addPackagingSize, updatePackagingSize, deletePackagingSize, getPackagingSizeById,
+    addBrand, updateBrand, deleteBrand, getBrandById,
     getCategoryById, getUnitById, getWarehouseById, getSupplierById, getProductById, getMachineById,
   }
 })

@@ -354,18 +354,15 @@ const packagingTypeOptions = [
   { label: "Can", value: "can" },
   { label: "Spout pouch", value: "spout_pouch" },
 ];
-const packagingSizeOptions = [
-  { label: "70 g.", value: 70 },
-  { label: "80 g.", value: 80 },
-  { label: "85 g.", value: 85 },
-  { label: "90 g.", value: 90 },
-  { label: "400 g.", value: 400 },
-];
-const brandOptions = [
-  { label: "Kandy", value: "kandy" },
-  { label: "Franc", value: "franc" },
-  { label: "Mika", value: "mika" },
-];
+const packagingSizeOptions = computed(() =>
+  masterStore.packagingSizes.map((p) => ({
+    label: `${p.size.toLocaleString()} ${p.unit || ""}`.trim(),
+    value: p.id,
+  })),
+);
+const brandOptions = computed(() =>
+  masterStore.brands.map((b) => ({ label: b.name, value: b.id })),
+);
 
 // ── BOM per-mixsize state ──────────────────────────────────
 const activeMixsizeId = ref(null);

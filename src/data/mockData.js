@@ -46,6 +46,20 @@ export const MIXSIZES = [
   { id: 'MX03', size: 50, unitId: 'U01' },
 ]
 
+export const PACKAGING_SIZES = [
+  { id: 'PKG01', size: 70,  unit: 'g.' },
+  { id: 'PKG02', size: 80,  unit: 'g.' },
+  { id: 'PKG03', size: 85,  unit: 'g.' },
+  { id: 'PKG04', size: 90,  unit: 'g.' },
+  { id: 'PKG05', size: 400, unit: 'g.' },
+]
+
+export const BRANDS = [
+  { id: 'BR01', name: 'Kandy' },
+  { id: 'BR02', name: 'Franc' },
+  { id: 'BR03', name: 'Mika' },
+]
+
 export const SUPPLIERS = [
   { id: 'SUP001', code: 'SUP001', name: 'บริษัท อาหารสด จำกัด',       contact: 'คุณสมชาย', phone: '02-111-1111', active: true },
   { id: 'SUP002', code: 'SUP002', name: 'บริษัท เคมีภัณฑ์ไทย จำกัด',  contact: 'คุณสมหญิง', phone: '02-222-2222', active: true },

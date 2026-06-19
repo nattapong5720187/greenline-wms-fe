@@ -64,6 +64,8 @@ const navGroups = computed(() => [
       { display: true, to: "/master/products", icon: "pi pi-box", label: "สินค้า / SKU" },
       { display: true, to: "/master/categories", icon: "pi pi-tags", label: "ประเภทสินค้า" },
       { display: true, to: "/master/units", icon: "pi pi-calculator", label: "หน่วยนับ" },
+      { display: true, to: "/master/packaging-sizes", icon: "pi pi-inbox", label: "ขนาดบรรจุภัณฑ์" },
+      { display: true, to: "/master/brands", icon: "pi pi-bookmark", label: "ชื่อแบรนด์" },
       { display: true, to: "/master/warehouses", icon: "pi pi-building", label: "คลังสินค้า" },
       { display: false, to: "/master/suppliers", icon: "pi pi-truck", label: "ซัพพลายเออร์" },
       { display: true, to: "/master/machines", icon: "pi pi-cog", label: "เครื่องจักร" },
