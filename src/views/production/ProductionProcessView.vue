@@ -86,41 +86,11 @@
 
       <div class="action-bar">
         <Button label="ยกเลิกใบสั่งผลิต" text severity="danger" @click="doCancel" />
-        <Button label="ยืนยัน → แปรรูป" icon="pi pi-play" class="btn-primary" @click="doStartProcessing" />
+        <Button label="ยืนยัน → ผสม" icon="pi pi-play" class="btn-primary" @click="doStartProcessing" />
       </div>
     </div>
 
-    <!-- ===== Step 2: แปรรูป (Process) ===== -->
-    <div v-else-if="order.status === 'processing'" class="page-card">
-      <div class="section-title">ขั้นตอนแปรรูป (เตรียมเนื้อ)</div>
-
-      <div class="section-title" style="margin-top: 16px">วัตถุดิบที่ใช้</div>
-      <table class="edit-tbl">
-        <thead>
-          <tr>
-            <th style="width: 40px">#</th>
-            <th>วัตถุดิบ</th>
-            <th style="width: 160px; text-align: right">ปริมาณที่ใช้</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(ing, idx) in order.ingredients" :key="ing.productId">
-            <td>{{ idx + 1 }}</td>
-            <td>
-              <div style="font-weight: 500">{{ nameOf(ing.productId) }}</div>
-              <div class="code-sub">{{ codeOf(ing.productId) }}</div>
-            </td>
-            <td style="text-align: right"><strong>{{ ing.qtyRequired.toLocaleString() }} {{ unitAbbrOf(ing.productId) }}</strong></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="action-bar">
-        <Button label="แปรรูปเสร็จ → ผสม" icon="pi pi-arrow-right" class="btn-primary" @click="doCompleteProcessing" />
-      </div>
-    </div>
-
-    <!-- ===== Step 3: ผสม (Mix) — 2 sub-steps ===== -->
+    <!-- ===== Step 2: ผสม (Mix) — 2 sub-steps ===== -->
     <div v-else-if="order.status === 'mixing'" class="page-card">
       <div class="section-title">ขั้นตอนผสม</div>
       <div class="substep-tabs">
@@ -141,10 +111,10 @@
             @click="downloadMixReport('sauce')" />
         </div>
         <div class="sheet-head">
-          <div class="form-field"><label>ชื่อสูตร (Name)</label><InputText v-model="sauce.name" style="width: 220px" /></div>
-          <div class="form-field"><label>รหัสสูตร (Code)</label><InputText v-model="sauce.code" style="width: 150px" /></div>
+          <div class="form-field"><label>ชื่อสูตร (Name)</label><InputText v-model="sauce.name" disabled style="width: 220px" /></div>
+          <div class="form-field"><label>รหัสสูตร (Code)</label><InputText v-model="sauce.code" disabled style="width: 150px" /></div>
           <div class="form-field"><label>Date</label><InputText v-model="sauce.date" type="date" style="width: 160px" /></div>
-          <div class="form-field"><label>Mix size (kg)</label><InputNumber v-model="sauce.mixSize" :min="0" style="width: 120px" /></div>
+          <div class="form-field"><label>Mix size (kg)</label><InputNumber v-model="sauce.mixSize" :min="0" disabled style="width: 120px" /></div>
           <div class="form-field">
             <label>เครื่องจักร (Machine)</label>
             <Dropdown v-model="sauce.machineId" :options="homoMixerOptions" optionLabel="label" optionValue="value"
@@ -160,7 +130,6 @@
                 <th v-for="c in sauce.columns" :key="c.key">
                   {{ c.label }}<div class="target" v-if="c.target != null">{{ c.target.toLocaleString() }} {{ c.unit }}</div>
                 </th>
-                <th class="end-col">Start</th>
                 <th class="end-col">End</th>
                 <th class="act-col"></th>
               </tr>
@@ -169,9 +138,8 @@
               <tr v-for="(row, idx) in sauce.rows" :key="idx">
                 <td class="no-col">{{ idx + 1 }}</td>
                 <td v-for="c in sauce.columns" :key="c.key">
-                  <input v-model.number="row.values[c.key]" type="number" step="0.01" class="cell-input" />
+                  <input v-model="row.starts[c.key]" type="time" class="cell-input" title="เวลาเริ่ม (Start)" />
                 </td>
-                <td><input v-model="row.start" type="time" class="cell-input" /></td>
                 <td><input v-model="row.end" type="time" class="cell-input" /></td>
                 <td class="act-col">
                   <button v-if="sauce.rows.length > 1" class="row-del" title="ลบรอบนี้" @click="sauce.rows.splice(idx, 1)">
@@ -196,10 +164,10 @@
             @click="downloadMixReport('meat')" />
         </div>
         <div class="sheet-head">
-          <div class="form-field"><label>ชื่อสูตร (Name)</label><InputText v-model="meat.name" style="width: 220px" /></div>
-          <div class="form-field"><label>Code</label><InputText v-model="meat.code" style="width: 150px" /></div>
+          <div class="form-field"><label>ชื่อสูตร (Name)</label><InputText v-model="meat.name" disabled style="width: 220px" /></div>
+          <div class="form-field"><label>Code</label><InputText v-model="meat.code" disabled style="width: 150px" /></div>
           <div class="form-field"><label>Date</label><InputText v-model="meat.date" type="date" style="width: 160px" /></div>
-          <div class="form-field"><label>Mix size (kg)</label><InputNumber v-model="meat.mixSize" :min="0" style="width: 120px" /></div>
+          <div class="form-field"><label>Mix size (kg)</label><InputNumber v-model="meat.mixSize" :min="0" disabled style="width: 120px" /></div>
           <div class="form-field">
             <label>เครื่องจักร (Machine)</label>
             <Dropdown v-model="meat.machineId" :options="ribbonMixerOptions" optionLabel="label" optionValue="value"
@@ -215,7 +183,6 @@
                 <th v-for="c in meat.columns" :key="c.key">
                   {{ c.label }}<div class="target" v-if="c.target != null">{{ c.target.toLocaleString() }} {{ c.unit }}</div>
                 </th>
-                <th class="end-col">Start</th>
                 <th class="end-col">End</th>
                 <th class="end-col">อุณหภูมิ</th>
                 <th class="act-col"></th>
@@ -225,9 +192,8 @@
               <tr v-for="(row, idx) in meat.rows" :key="idx">
                 <td class="no-col">{{ idx + 1 }}</td>
                 <td v-for="c in meat.columns" :key="c.key">
-                  <input v-model.number="row.values[c.key]" type="number" step="0.01" class="cell-input" />
+                  <input v-model="row.starts[c.key]" type="time" class="cell-input" title="เวลาเริ่ม (Start)" />
                 </td>
-                <td><input v-model="row.start" type="time" class="cell-input" /></td>
                 <td><input v-model="row.end" type="time" class="cell-input" /></td>
                 <td><input v-model.number="row.temp" type="number" step="0.1" class="cell-input" /></td>
                 <td class="act-col">
@@ -237,45 +203,18 @@
                 </td>
               </tr>
             </tbody>
-            <tfoot>
-              <tr class="total-row">
-                <td class="no-col">Total</td>
-                <td v-for="c in meat.columns" :key="c.key">
-                  <input v-model.number="meat.totals[c.key]" type="number" step="0.01" class="cell-input" />
-                </td>
-                <td class="hatch"></td>
-                <td class="hatch"></td>
-                <td class="hatch"></td>
-                <td class="act-col"></td>
-              </tr>
-            </tfoot>
           </table>
         </div>
         <button class="add-round" @click="addMeatRow"><i class="pi pi-plus" /> เพิ่มรอบ Mix</button>
 
         <div class="action-bar">
           <Button label="ย้อนกลับ" text icon="pi pi-arrow-left" @click="mixSub = 'sauce'" />
-          <Button label="ผสมเสร็จ → บรรจุ" icon="pi pi-arrow-right" class="btn-primary" @click="doCompleteMixing" />
+          <Button label="ผสมเสร็จ → รับเข้า Semi" icon="pi pi-arrow-right" class="btn-primary" @click="doCompleteMixing" />
         </div>
       </div>
     </div>
 
-    <!-- ===== Step 4: บรรจุ (Filling) ===== -->
-    <div v-else-if="order.status === 'packing'" class="page-card">
-      <div class="section-title">บรรจุ (เนื้อ + ซอส → แพ็กเกจ)</div>
-      <div class="info-box green">
-        <i class="pi pi-box" />
-        <div>
-          <div style="font-weight: 600; font-size: 15px">บรรจุลงแพ็กเกจ → Semi</div>
-          <div style="font-size: 13px; color: #166534">นำเนื้อผสมซอสบรรจุลงบรรจุภัณฑ์</div>
-        </div>
-      </div>
-      <div class="action-bar">
-        <Button label="บรรจุเสร็จ → รับเข้า Semi" icon="pi pi-arrow-right" class="btn-primary" @click="doCompleteFilling" />
-      </div>
-    </div>
-
-    <!-- ===== Step 5: รับเข้า Semi ===== -->
+    <!-- ===== Step 3: รับเข้า Semi ===== -->
     <div v-else-if="order.status === 'receiving'" class="page-card">
       <div class="done-banner">
         <i class="pi pi-check-circle" style="font-size: 40px; color: #10b981" />
@@ -300,7 +239,6 @@
       <div class="summary-grid">
         <div class="sum-card"><div class="sum-label">สูตรที่ใช้</div><div class="sum-val">{{ formulaName }}</div></div>
         <div class="sum-card"><div class="sum-label">จำนวน Batch</div><div class="sum-val">{{ order.plannedBatches }}</div></div>
-        <div class="sum-card"><div class="sum-label">เนื้อแปรรูป</div><div class="sum-val">{{ order.processData?.qty?.toLocaleString() || "—" }} kg</div></div>
         <div class="sum-card"><div class="sum-label">Semi Lot</div><div class="sum-val mono">{{ order.semiLot?.lotNo || "—" }}</div></div>
         <div class="sum-card highlight"><div class="sum-label">Semi เข้าคลัง</div><div class="sum-val big">{{ order.actualOutput?.toLocaleString() }} {{ formula?.outputUnit }}</div></div>
       </div>
@@ -342,9 +280,9 @@ const order = computed(() => productionStore.orders.find((o) => o.id === route.p
 const formula = computed(() => (order.value ? productionStore.getFormulaById(order.value.formulaId) : null));
 const formulaName = computed(() => formula.value?.name || "—");
 
-const steps = ["ยืนยันวัตถุดิบ", "แปรรูป", "ผสม", "บรรจุ", "สำเร็จ"];
+const steps = ["ยืนยันวัตถุดิบ", "ผสม", "สำเร็จ"];
 const stepIndex = computed(
-  () => ({ confirmed: 0, processing: 1, mixing: 2, packing: 3, receiving: 4, done: 5 })[order.value?.status] ?? 0,
+  () => ({ confirmed: 0, mixing: 1, receiving: 2, done: 3 })[order.value?.status] ?? 0,
 );
 
 function stepState(i) {
@@ -386,27 +324,23 @@ function initConfirm() {
   }
 }
 
-// ---- Step 2: process ----
-const processQty = ref(0);
-const processTemp = ref(null);
-const processNote = ref("");
-function initProcess() {
-  const d = order.value?.processData;
-  processQty.value = d?.qty ?? (formula.value ? formula.value.outputQtyPerBatch * order.value.plannedBatches : 0);
-  processTemp.value = d?.temp ?? null;
-  processNote.value = d?.note ?? "";
-}
-
-// ---- Step 3: mix ----
+// ---- Step 2: mix ----
 const mixSub = ref("sauce");
 const sauce = reactive({ name: "", code: "", date: "", mixSize: 50, machineId: null, columns: [], rows: [] });
-const meat = reactive({ name: "", code: "", date: "", mixSize: 0, machineId: null, columns: [], rows: [], totals: {} });
+const meat = reactive({ name: "", code: "", date: "", mixSize: 0, machineId: null, columns: [], rows: [] });
 
 function makeSauceRow() {
-  return { values: Object.fromEntries(sauce.columns.map((c) => [c.key, null])), start: "", end: "" };
+  return {
+    starts: Object.fromEntries(sauce.columns.map((c) => [c.key, ""])),
+    end: "",
+  };
 }
 function makeMeatRow() {
-  return { values: Object.fromEntries(meat.columns.map((c) => [c.key, null])), start: "", end: "", temp: null };
+  return {
+    starts: Object.fromEntries(meat.columns.map((c) => [c.key, ""])),
+    end: "",
+    temp: null,
+  };
 }
 function addSauceRow() { sauce.rows.push(makeSauceRow()); }
 function addMeatRow() { meat.rows.push(makeMeatRow()); }
@@ -451,22 +385,7 @@ function initMix() {
   meat.machineId = saved?.meat?.machineId ?? ribbonMixerOptions.value[0]?.value ?? null;
   meat.columns = saved?.meat?.columns ?? mCols;
   meat.rows = saved?.meat?.rows ?? [makeMeatRow()];
-  meat.totals = saved?.meat?.totals ?? Object.fromEntries(mCols.map((c) => [c.key, null]));
   mixSub.value = "sauce";
-}
-
-// ---- Step 4: filling ----
-const fillSemiQty = ref(0);
-const fillPackCount = ref(null);
-const fillExpiry = ref("");
-const fillNote = ref("");
-function initFilling() {
-  const f = order.value?.fillingData;
-  fillSemiQty.value = f?.semiQty ?? order.value?.processData?.qty ??
-    (formula.value ? formula.value.outputQtyPerBatch * order.value.plannedBatches : 0);
-  fillPackCount.value = f?.packCount ?? null;
-  fillExpiry.value = f?.expiry ?? "";
-  fillNote.value = f?.note ?? "";
 }
 
 // re-init local state whenever the active step changes
@@ -475,9 +394,7 @@ watch(
   () => {
     const s = order.value?.status;
     if (s === "confirmed") initConfirm();
-    else if (s === "processing") initProcess();
     else if (s === "mixing") initMix();
-    else if (s === "packing") initFilling();
   },
   { immediate: true },
 );
@@ -516,14 +433,7 @@ function doStartProcessing() {
   }
   productionStore.setIngredients(order.value.id, list);
   productionStore.startProcessing(order.value.id);
-  toast.add({ severity: "success", summary: "เริ่มแปรรูปแล้ว", life: 3000 });
-}
-
-function doCompleteProcessing() {
-  productionStore.completeProcessing(order.value.id, {
-    qty: processQty.value, temp: processTemp.value, note: processNote.value,
-  });
-  toast.add({ severity: "success", summary: "แปรรูปเสร็จแล้ว", detail: "ดำเนินการผสมต่อไป", life: 3000 });
+  toast.add({ severity: "success", summary: "ยืนยันวัตถุดิบแล้ว", detail: "ดำเนินการผสมต่อไป", life: 3000 });
 }
 
 function doCompleteMixing() {
@@ -531,9 +441,9 @@ function doCompleteMixing() {
     sauce: { name: sauce.name, code: sauce.code, date: sauce.date, mixSize: sauce.mixSize,
       machineId: sauce.machineId, columns: sauce.columns, rows: sauce.rows },
     meat: { name: meat.name, code: meat.code, date: meat.date, mixSize: meat.mixSize,
-      machineId: meat.machineId, columns: meat.columns, rows: meat.rows, totals: meat.totals },
+      machineId: meat.machineId, columns: meat.columns, rows: meat.rows },
   });
-  toast.add({ severity: "success", summary: "ผสมเสร็จแล้ว", detail: "ดำเนินการบรรจุต่อไป", life: 3000 });
+  toast.add({ severity: "success", summary: "ผสมเสร็จแล้ว", detail: "ไปขั้นตอนรับเข้า Semi", life: 3000 });
 }
 
 function machineLabel(id) {
@@ -554,31 +464,19 @@ function downloadMixReport(type) {
   const headCells = [
     "ครั้งที่ Mix",
     ...cols.map((c) => esc(c.label) + (c.target != null ? ` (${c.target} ${esc(c.unit)})` : "")),
-    "Start",
     "End",
     ...(isMeat ? ["อุณหภูมิ"] : []),
   ];
   const bodyRows = (sheet.rows || []).map((r, i) => {
+    const ingCells = cols.map((c) => `<td>${esc(r.starts?.[c.key])}</td>`);
     const cells = [
-      i + 1,
-      ...cols.map((c) => esc(r.values?.[c.key])),
-      esc(r.start),
-      esc(r.end),
-      ...(isMeat ? [esc(r.temp)] : []),
+      `<td class="no">${i + 1}</td>`,
+      ...ingCells,
+      `<td>${esc(r.end)}</td>`,
+      ...(isMeat ? [`<td>${esc(r.temp)}</td>`] : []),
     ];
-    return `<tr>${cells.map((c, j) => `<td${j === 0 ? ' class="no"' : ""}>${c}</td>`).join("")}</tr>`;
+    return `<tr>${cells.join("")}</tr>`;
   });
-  let totalRow = "";
-  if (isMeat && sheet.totals) {
-    const cells = [
-      "Total",
-      ...cols.map((c) => esc(sheet.totals[c.key])),
-      "",
-      "",
-      "",
-    ];
-    totalRow = `<tr class="total">${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
-  }
 
   const html = `<!doctype html><html lang="th"><head><meta charset="utf-8">
 <title>${esc(title)} — ${esc(order.value?.docNo || "")}</title>
@@ -591,7 +489,6 @@ function downloadMixReport(type) {
   th { background: #1e2a3b; color: #fff; padding: 8px; text-align: center; }
   td { border: 1px solid #e2e8f0; padding: 7px 8px; text-align: center; }
   td.no { background: #f8fafc; font-weight: 700; }
-  tr.total td { background: #1e2a3b; color: #fff; font-weight: 700; }
   .foot { margin-top: 16px; font-size: 11px; color: #94a3b8; text-align: right; }
 </style></head><body>
 <h1>${esc(title)}</h1>
@@ -605,7 +502,7 @@ function downloadMixReport(type) {
 </div>
 <table>
   <thead><tr>${headCells.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
-  <tbody>${bodyRows.join("")}${totalRow}</tbody>
+  <tbody>${bodyRows.join("")}</tbody>
 </table>
 <div class="foot">พิมพ์เมื่อ ${new Date().toLocaleString("th-TH")}</div>
 </body></html>`;
@@ -620,14 +517,6 @@ function downloadMixReport(type) {
   a.remove();
   URL.revokeObjectURL(url);
   toast.add({ severity: "success", summary: "ดาวน์โหลดเอกสารแล้ว", life: 2500 });
-}
-
-function doCompleteFilling() {
-  productionStore.completeFilling(order.value.id, {
-    semiQty: fillSemiQty.value, packCount: fillPackCount.value,
-    expiry: fillExpiry.value || null, note: fillNote.value,
-  });
-  toast.add({ severity: "success", summary: "บรรจุเสร็จแล้ว", detail: "ไปขั้นตอนรับเข้า Semi", life: 3000 });
 }
 
 function doReceiveSemi() {
@@ -780,21 +669,6 @@ function doReceiveSemi() {
 }
 .mix-sheet tbody tr:hover .row-del { color: #f87171; }
 .row-del:hover { background: #fef2f2; color: #dc2626; }
-
-/* total footer band */
-.mix-sheet tfoot td { padding: 0; text-align: center; background: #1e2a3b; }
-.mix-sheet tfoot td:not(:last-child) { border-right: 1px solid rgba(255, 255, 255, 0.08); }
-.mix-sheet tfoot .no-col { color: #fff; font-weight: 700; padding: 13px 8px; letter-spacing: 0.3px; }
-.mix-sheet tfoot .cell-input { color: #fff; font-weight: 700; }
-.mix-sheet tfoot .cell-input::placeholder { color: #64748b; }
-.mix-sheet tfoot .cell-input:hover { background: rgba(255, 255, 255, 0.07); }
-.mix-sheet tfoot .cell-input:focus {
-  background: rgba(255, 255, 255, 0.1); border-color: #84cc16;
-  box-shadow: inset 0 0 0 3px rgba(132, 204, 22, 0.3);
-}
-.mix-sheet tfoot .hatch {
-  background: repeating-linear-gradient(45deg, #2a3850, #2a3850 5px, #1e2a3b 5px, #1e2a3b 10px);
-}
 
 /* add-row affordance */
 .add-round {

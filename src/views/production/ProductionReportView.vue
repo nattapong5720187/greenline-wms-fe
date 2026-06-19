@@ -98,15 +98,14 @@ const filterStatus = ref(null)
 
 const allOrders = computed(() => productionStore.orders.filter(o => o.status !== 'cancelled'))
 const doneOrders = computed(() => productionStore.orders.filter(o => o.status === 'done'))
-const inProgressOrders = computed(() => productionStore.orders.filter(o => ['mixing', 'processing', 'packing'].includes(o.status)))
+const inProgressOrders = computed(() => productionStore.orders.filter(o => ['mixing', 'receiving'].includes(o.status)))
 const totalOutput = computed(() => doneOrders.value.reduce((s, o) => s + (o.actualOutput || 0), 0))
 const totalBatches = computed(() => allOrders.value.reduce((s, o) => s + o.plannedBatches, 0))
 
 const statusOptions = [
   { label: 'ยืนยันแล้ว', value: 'confirmed' },
   { label: 'กำลังผสม', value: 'mixing' },
-  { label: 'กำลังแปรรูป', value: 'processing' },
-  { label: 'กำลังบรรจุ', value: 'packing' },
+  { label: 'รอรับเข้า Semi', value: 'receiving' },
   { label: 'เสร็จสิ้น', value: 'done' },
   { label: 'ยกเลิก', value: 'cancelled' },
 ]
@@ -124,7 +123,7 @@ const filtered = computed(() =>
 function getFormula(id) { return productionStore.getFormulaById(id) }
 function getFormulaName(id) { return getFormula(id)?.name || '—' }
 function statusLabel(s) {
-  return { confirmed: 'ยืนยันแล้ว', mixing: 'กำลังผสม', processing: 'กำลังแปรรูป', packing: 'กำลังบรรจุ', done: 'เสร็จสิ้น', cancelled: 'ยกเลิก' }[s] || s
+  return { confirmed: 'ยืนยันแล้ว', mixing: 'กำลังผสม', receiving: 'รอรับเข้า Semi', done: 'เสร็จสิ้น', cancelled: 'ยกเลิก' }[s] || s
 }
 function formatDt(dt) {
   if (!dt) return '—'

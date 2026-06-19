@@ -126,9 +126,7 @@ const createForm = ref({ formulaId: null, mixsizeId: null })
 
 const statusOptions = [
   { label: 'ยืนยันแล้ว', value: 'confirmed' },
-  { label: 'กำลังแปรรูป', value: 'processing' },
   { label: 'กำลังผสม', value: 'mixing' },
-  { label: 'กำลังบรรจุ', value: 'packing' },
   { label: 'รอรับเข้า Semi', value: 'receiving' },
   { label: 'เสร็จสิ้น', value: 'done' },
   { label: 'ยกเลิก', value: 'cancelled' },
@@ -168,7 +166,7 @@ function getIngredientCount(formulaId, mixsizeId) {
   return getFormula(formulaId)?.ingredients?.length || 0
 }
 function statusLabel(s) {
-  return { confirmed: 'ยืนยันแล้ว', processing: 'กำลังแปรรูป', mixing: 'กำลังผสม', packing: 'กำลังบรรจุ', receiving: 'รอรับเข้า Semi', done: 'เสร็จสิ้น', cancelled: 'ยกเลิก' }[s] || s
+  return { confirmed: 'ยืนยันแล้ว', mixing: 'กำลังผสม', receiving: 'รอรับเข้า Semi', done: 'เสร็จสิ้น', cancelled: 'ยกเลิก' }[s] || s
 }
 function formatDate(dt) {
   if (!dt) return '—'
