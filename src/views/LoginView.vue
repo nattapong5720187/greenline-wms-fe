@@ -65,7 +65,7 @@
 
         <div class="login-hint">
           <i class="pi pi-info-circle" />
-          Demo: username <strong>admin</strong> / password <strong>123456</strong>
+          Demo: username <strong>admin</strong> / password <strong>Test#1234</strong>
         </div>
       </div>
     </div>
@@ -94,12 +94,11 @@ async function handleLogin() {
     return
   }
   loading.value = true
-  await new Promise(r => setTimeout(r, 600))
   try {
-    authStore.login(form.value.username, form.value.password)
+    await authStore.login(form.value.username, form.value.password)
     router.push('/dashboard')
   } catch (e) {
-    error.value = e.message
+    error.value = e.response?.data?.message || e.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่'
   } finally {
     loading.value = false
   }

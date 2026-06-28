@@ -44,6 +44,7 @@
 
 <script setup>
 import { useNotificationStore } from "@/stores/notifications";
+import { useAuthStore } from "@/stores/auth";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 
@@ -52,6 +53,7 @@ defineEmits(["toggle"]);
 
 const route = useRoute();
 const notifStore = useNotificationStore();
+const authStore = useAuthStore();
 
 const navGroups = computed(() => [
   {
@@ -103,7 +105,7 @@ const navGroups = computed(() => [
   {
     label: "ระบบ",
     items: [
-      { display: true, to: "/admin/users", icon: "pi pi-users", label: "ผู้ใช้ & สิทธิ์" },
+      { display: authStore.isSuperAdmin, to: "/admin/users", icon: "pi pi-users", label: "ผู้ใช้ & สิทธิ์" },
       {
         display: false,
         to: "/notifications",

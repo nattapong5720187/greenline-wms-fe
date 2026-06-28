@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
-  WAREHOUSES, CATEGORIES, UNITS, SUPPLIERS, PRODUCTS, USERS, MACHINES, MIXSIZES,
+  WAREHOUSES, CATEGORIES, UNITS, SUPPLIERS, PRODUCTS, MACHINES, MIXSIZES,
   PACKAGING_SIZES, BRANDS
 } from '@/data/mockData'
 
@@ -16,7 +16,6 @@ export const useMasterStore = defineStore('master', () => {
   const mixsizes = ref([...MIXSIZES])
   const suppliers = ref([...SUPPLIERS])
   const products = ref([...PRODUCTS])
-  const users = ref([...USERS])
   const machines = ref([...MACHINES])
   const packagingSizes = ref([...PACKAGING_SIZES])
   const brands = ref([...BRANDS])
@@ -94,17 +93,6 @@ export const useMasterStore = defineStore('master', () => {
     products.value = products.value.filter(p => p.id !== id)
   }
 
-  // ---- Users ----
-  function addUser(data) {
-    users.value.push({ ...data, id: makeId('USR'), active: true })
-  }
-  function updateUser(id, data) {
-    const i = users.value.findIndex(u => u.id === id)
-    if (i !== -1) users.value[i] = { ...users.value[i], ...data }
-  }
-  function deleteUser(id) {
-    users.value = users.value.filter(u => u.id !== id)
-  }
 
   // ---- Machines ----
   function addMachine(data) {
@@ -153,7 +141,7 @@ export const useMasterStore = defineStore('master', () => {
   function getMachineById(id) { return machines.value.find(m => m.id === id) }
 
   return {
-    warehouses, categories, units, suppliers, products, users, machines, mixsizes,
+    warehouses, categories, units, suppliers, products, machines, mixsizes,
     packagingSizes, brands,
     addWarehouse, updateWarehouse, deleteWarehouse,
     addCategory, updateCategory, deleteCategory,
@@ -161,7 +149,7 @@ export const useMasterStore = defineStore('master', () => {
     addMixsize, updateMixsize, deleteMixsize, getMixsizeById,
     addSupplier, updateSupplier, deleteSupplier,
     addProduct, updateProduct, deleteProduct,
-    addUser, updateUser, deleteUser,
+
     addMachine, updateMachine, deleteMachine,
     addPackagingSize, updatePackagingSize, deletePackagingSize, getPackagingSizeById,
     addBrand, updateBrand, deleteBrand, getBrandById,

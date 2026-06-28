@@ -8,13 +8,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.4.21",
-    "vue-router": "^4.3.0",
-    "pinia": "^2.1.7",
-    "primevue": "^4.0.5",
     "@primevue/themes": "^4.0.5",
+    "@vueuse/core": "^10.9.0",
+    "axios": "^1.18.1",
+    "js-cookie": "^3.0.8",
+    "pinia": "^2.1.7",
     "primeicons": "^7.0.0",
-    "@vueuse/core": "^10.9.0"
+    "primevue": "^4.0.5",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
