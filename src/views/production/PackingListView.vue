@@ -65,6 +65,7 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePackingStore } from '@/stores/packing'
 import { useMasterStore } from '@/stores/master'
@@ -75,6 +76,11 @@ import Column from 'primevue/column'
 const router = useRouter()
 const packingStore = usePackingStore()
 const masterStore = useMasterStore()
+
+onMounted(() => {
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 function inputList(data) {
   if (data.inputs && data.inputs.length) return data.inputs

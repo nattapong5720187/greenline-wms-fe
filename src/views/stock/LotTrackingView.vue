@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useMasterStore } from '@/stores/master'
 import { useStockStore } from '@/stores/stock'
 import InputText from 'primevue/inputtext'
@@ -82,6 +82,12 @@ import Column from 'primevue/column'
 
 const masterStore = useMasterStore()
 const stockStore = useStockStore()
+
+onMounted(() => {
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.suppliers.length) masterStore.fetchSuppliers()
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
+})
 
 const search = ref('')
 const filterProduct = ref(null)

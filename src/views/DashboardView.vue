@@ -106,7 +106,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useMasterStore } from '@/stores/master'
 import { useStockStore } from '@/stores/stock'
 import { useDocumentStore } from '@/stores/documents'
@@ -116,6 +116,12 @@ import Column from 'primevue/column'
 const masterStore = useMasterStore()
 const stockStore = useStockStore()
 const docStore = useDocumentStore()
+
+onMounted(() => {
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 const stats = computed(() => [
   {

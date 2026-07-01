@@ -61,7 +61,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useProductionStore } from '@/stores/production'
@@ -76,6 +76,10 @@ const productionStore = useProductionStore()
 const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
+
+onMounted(() => {
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 function getMixsizeLabel(mixsizeId) {
   const mx = masterStore.getMixsizeById(mixsizeId)

@@ -169,7 +169,7 @@ import Dialog from "primevue/dialog";
 import Dropdown from "primevue/dropdown";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -177,6 +177,10 @@ const confirm = useConfirm();
 const toast = useToast();
 const productionStore = useProductionStore();
 const masterStore = useMasterStore();
+
+onMounted(() => {
+  if (!masterStore.units.length) masterStore.fetchUnits();
+});
 
 const filterStatus = ref(null);
 const filterFormula = ref(null);

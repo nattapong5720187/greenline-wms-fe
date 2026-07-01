@@ -281,17 +281,6 @@ export const useMasterStore = defineStore('master', () => {
   function getProductById(id) { return products.value.find(p => p.id === id) }
   function getMachineById(id) { return machines.value.find(m => m.id === id) }
 
-  // Load all backend-driven master data as soon as the store is created so any
-  // view referencing masterStore.<resource> has data without an explicit fetch.
-  fetchWarehouses().catch((e) => console.error('Failed to load warehouses', e))
-  fetchCategories().catch((e) => console.error('Failed to load categories', e))
-  fetchUnits().catch((e) => console.error('Failed to load units', e))
-  fetchSuppliers().catch((e) => console.error('Failed to load suppliers', e))
-  fetchProducts().catch((e) => console.error('Failed to load products', e))
-  fetchMachines().catch((e) => console.error('Failed to load machines', e))
-  fetchPackagingSizes().catch((e) => console.error('Failed to load packaging sizes', e))
-  fetchBrands().catch((e) => console.error('Failed to load brands', e))
-
   return {
     warehouses, warehousesLoading, categories, categoriesLoading, units, unitsLoading,
     suppliers, suppliersLoading, products, productsLoading, machines, machinesLoading, mixsizes,

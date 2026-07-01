@@ -107,7 +107,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { usePackingStore } from '@/stores/packing'
@@ -130,6 +130,11 @@ const form = ref({
 })
 // FG / Rejected quantities keyed by product id, mirrored from the Semi inputs
 const outputQty = ref({})
+
+onMounted(() => {
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 const semiOptions = computed(() =>
   masterStore.products

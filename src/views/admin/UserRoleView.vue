@@ -560,6 +560,12 @@ async function executeDelete() {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  .p-inputtext {
+    width: 100%;
+  }
+  .p-multiselect {
+    width: 100%;
+  }
 }
 .form-grid {
   display: grid;

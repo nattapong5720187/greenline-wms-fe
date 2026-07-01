@@ -466,6 +466,10 @@ function isPremix(productId) {
 }
 
 onMounted(() => {
+  if (!masterStore.units.length) masterStore.fetchUnits();
+  if (!masterStore.products.length) masterStore.fetchProducts();
+  if (!masterStore.packagingSizes.length) masterStore.fetchPackagingSizes();
+  if (!masterStore.brands.length) masterStore.fetchBrands();
   if (isEdit.value) {
     const f = productionStore.getFormulaById(route.params.id);
     if (f) {

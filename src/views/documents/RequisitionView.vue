@@ -133,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '@/stores/auth'
@@ -160,6 +160,12 @@ const doc = computed(() => route.params.id ? docStore.getById(route.params.id) :
 
 const form = ref({ warehouseId: null, remark: '', items: [] })
 const canSave = computed(() => form.value.warehouseId && form.value.items.length > 0)
+
+onMounted(() => {
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 function addItem() { form.value.items.push({ productId: null, qty: 1, unitId: null, lotId: null }) }
 

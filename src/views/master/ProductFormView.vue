@@ -100,6 +100,8 @@ const form = ref({
 })
 
 onMounted(async () => {
+  if (!masterStore.categories.length) masterStore.fetchCategories()
+  if (!masterStore.units.length) masterStore.fetchUnits()
   if (isEdit.value) {
     let p = masterStore.getProductById(route.params.id)
     if (!p) {

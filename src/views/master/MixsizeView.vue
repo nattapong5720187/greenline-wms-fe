@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
@@ -80,6 +80,10 @@ import Dropdown from 'primevue/dropdown'
 const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
+
+onMounted(() => {
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 const showDialog = ref(false)
 const editing = ref(null)

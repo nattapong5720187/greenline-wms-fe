@@ -123,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '@/stores/auth'
 import { useMasterStore } from '@/stores/master'
@@ -143,6 +143,10 @@ const search = ref('')
 const activeType = ref('all')
 const filterStatus = ref(null)
 const filterWarehouse = ref(null)
+
+onMounted(() => {
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
+})
 
 const typeFilters = [
   { value: 'all',         label: 'ทั้งหมด',  dotClass: '' },

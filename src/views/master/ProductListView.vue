@@ -124,7 +124,11 @@ async function fetchProducts() {
   }
 }
 
-onMounted(fetchProducts)
+onMounted(() => {
+  fetchProducts()
+  if (!masterStore.categories.length) masterStore.fetchCategories()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 function confirmDelete(product) {
   confirm.require({

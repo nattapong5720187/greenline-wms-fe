@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '@/stores/auth'
 import { useMasterStore } from '@/stores/master'
@@ -115,6 +115,12 @@ const toast = useToast()
 const authStore = useAuthStore()
 const masterStore = useMasterStore()
 const stockStore = useStockStore()
+
+onMounted(() => {
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 const showDialog = ref(false)
 const form = ref({ fromWarehouseId: null, toWarehouseId: null, productId: null, qty: null, lotId: null, reason: '' })

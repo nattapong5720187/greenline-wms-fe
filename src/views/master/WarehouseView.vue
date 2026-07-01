@@ -31,7 +31,9 @@
               <span class="wdcs-lbl">จำนวนรวม</span>
             </div>
             <div class="wdc-stat">
-              <span class="wdcs-val" :style="{ color: holdCount(wh.id) > 0 ? 'var(--gl-red)' : 'inherit' }">{{ holdCount(wh.id) }}</span>
+              <span class="wdcs-val" :style="{ color: holdCount(wh.id) > 0 ? 'var(--gl-red)' : 'inherit' }">{{
+                holdCount(wh.id)
+              }}</span>
               <span class="wdcs-lbl">Hold</span>
             </div>
           </div>
@@ -44,8 +46,13 @@
       </div>
     </div>
 
-    <Dialog v-model:visible="showDialog" :header="editing ? 'แก้ไขคลัง' : 'เพิ่มคลังสินค้า'"
-      :modal="true" :style="{ width: '420px' }" :closable="!saving">
+    <Dialog
+      v-model:visible="showDialog"
+      :header="editing ? 'แก้ไขคลัง' : 'เพิ่มคลังสินค้า'"
+      :modal="true"
+      :style="{ width: '420px' }"
+      :closable="!saving"
+    >
       <div class="dialog-form">
         <div>
           <label class="field-label">รหัสคลัง <span class="req">*</span></label>
@@ -69,140 +76,215 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useConfirm } from 'primevue/useconfirm'
-import { useToast } from 'primevue/usetoast'
-import { useMasterStore } from '@/stores/master'
-import { useStockStore } from '@/stores/stock'
-import Button from 'primevue/button'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import Dropdown from 'primevue/dropdown'
+import { useMasterStore } from "@/stores/master";
+import { useStockStore } from "@/stores/stock";
+import Button from "primevue/button";
+import Dialog from "primevue/dialog";
+import Dropdown from "primevue/dropdown";
+import InputText from "primevue/inputtext";
+import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
+import { onMounted, ref } from "vue";
 
-const masterStore = useMasterStore()
-const stockStore = useStockStore()
-const confirm = useConfirm()
-const toast = useToast()
+const masterStore = useMasterStore();
+const stockStore = useStockStore();
+const confirm = useConfirm();
+const toast = useToast();
 
-const loading = ref(false)
-const showDialog = ref(false)
-const saving = ref(false)
-const editing = ref(null)
-const form = ref(defaultForm())
+const loading = ref(false);
+const showDialog = ref(false);
+const saving = ref(false);
+const editing = ref(null);
+const form = ref(defaultForm());
 
 function defaultForm() {
-  return { code: '', name: '', type: 'main' }
+  return { code: "", name: "", type: "main" };
 }
 
 const typeOptions = [
-  { label: 'คลังหลัก', value: 'main' },
-  { label: 'ห้องเย็น (ภายใน)', value: 'cold' },
-  { label: 'ห้องเย็น (ภายนอก)', value: 'cold_external' },
-]
+  { label: "คลังหลัก", value: "main" },
+  { label: "ห้องเย็น (ภายใน)", value: "cold" },
+  { label: "ห้องเย็น (ภายนอก)", value: "cold_external" },
+];
 
-function whTypeLabel(t) { return typeOptions.find(o => o.value === t)?.label || t }
+function whTypeLabel(t) {
+  return typeOptions.find((o) => o.value === t)?.label || t;
+}
 function whTypeColor(t) {
-  return { main: 'linear-gradient(135deg, #0D2461, #1a3a7c)', cold: 'linear-gradient(135deg, #0369a1, #0284c7)', cold_external: 'linear-gradient(135deg, #1d4ed8, #3b82f6)' }[t] || '#0D2461'
+  return (
+    {
+      main: "linear-gradient(135deg, #0D2461, #1a3a7c)",
+      cold: "linear-gradient(135deg, #0369a1, #0284c7)",
+      cold_external: "linear-gradient(135deg, #1d4ed8, #3b82f6)",
+    }[t] || "#0D2461"
+  );
 }
 
 function totalQty(whId) {
-  return stockStore.getStockByWarehouse(whId).reduce((sum, s) => sum + s.qty, 0).toLocaleString()
+  return stockStore
+    .getStockByWarehouse(whId)
+    .reduce((sum, s) => sum + s.qty, 0)
+    .toLocaleString();
 }
 function holdCount(whId) {
-  return stockStore.holdItems.filter(h => h.warehouseId === whId && h.status === 'hold').length
+  return stockStore.holdItems.filter((h) => h.warehouseId === whId && h.status === "hold").length;
 }
 
 async function fetchWarehouses() {
-  loading.value = true
+  loading.value = true;
   try {
-    await masterStore.fetchWarehouses()
+    await masterStore.fetchWarehouses();
   } catch {
-    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
+    toast.add({ severity: "error", summary: "โหลดข้อมูลล้มเหลว", life: 3000 });
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-onMounted(fetchWarehouses)
+onMounted(fetchWarehouses);
 
 function openDialog(item = null) {
-  editing.value = item
-  form.value = item ? { code: item.code, name: item.name, type: item.type } : defaultForm()
-  showDialog.value = true
+  editing.value = item;
+  form.value = item ? { code: item.code, name: item.name, type: item.type } : defaultForm();
+  showDialog.value = true;
 }
 
 async function handleSave() {
   if (!form.value.code || !form.value.name) {
-    toast.add({ severity: 'warn', summary: 'กรุณากรอกข้อมูลให้ครบ', life: 3000 })
-    return
+    toast.add({ severity: "warn", summary: "กรุณากรอกข้อมูลให้ครบ", life: 3000 });
+    return;
   }
-  saving.value = true
+  saving.value = true;
   try {
     if (editing.value) {
-      await masterStore.updateWarehouse(editing.value.id, { ...form.value })
-      toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
+      await masterStore.updateWarehouse(editing.value.id, { ...form.value });
+      toast.add({ severity: "success", summary: "แก้ไขสำเร็จ", life: 3000 });
     } else {
-      await masterStore.addWarehouse({ ...form.value })
-      toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+      await masterStore.addWarehouse({ ...form.value });
+      toast.add({ severity: "success", summary: "เพิ่มสำเร็จ", life: 3000 });
     }
-    showDialog.value = false
+    showDialog.value = false;
   } catch (e) {
-    const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
-    toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+    const msg = e.response?.data?.message || "เกิดข้อผิดพลาด";
+    toast.add({ severity: "error", summary: Array.isArray(msg) ? msg.join(", ") : msg, life: 4000 });
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 function confirmDelete(item) {
   confirm.require({
     message: `ลบคลัง "${item.name}" ใช่หรือไม่?`,
-    header: 'ยืนยันการลบ',
-    icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
+    header: "ยืนยันการลบ",
+    icon: "pi pi-exclamation-triangle",
+    acceptClass: "p-button-danger",
     accept: async () => {
       try {
-        await masterStore.deleteWarehouse(item.id)
-        toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+        await masterStore.deleteWarehouse(item.id);
+        toast.add({ severity: "success", summary: "ลบสำเร็จ", life: 3000 });
       } catch (e) {
-        const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
-        toast.add({ severity: 'error', summary: msg, life: 4000 })
+        const msg = e.response?.data?.message || "เกิดข้อผิดพลาด";
+        toast.add({ severity: "error", summary: msg, life: 4000 });
       }
-    }
-  })
+    },
+  });
 }
 </script>
 
 <style scoped>
-.wh-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.wh-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
 
 .wh-detail-card {
   background: var(--gl-surface);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--gl-border);
 }
 
 .wdc-header {
   padding: 20px;
-  display: flex; align-items: center; gap: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   color: #fff;
 }
-.wdc-icon { font-size: 28px; }
-.wdc-name { font-size: 16px; font-weight: 700; }
-.wdc-code { font-size: 12px; opacity: 0.7; }
-.wdc-type-badge { margin-left: auto; background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.wdc-icon {
+  font-size: 28px;
+}
+.wdc-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+.wdc-code {
+  font-size: 12px;
+  opacity: 0.7;
+}
+.wdc-type-badge {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
 
-.wdc-body { padding: 16px 20px; }
+.wdc-body {
+  padding: 16px 20px;
+}
 
-.wdc-stats { display: flex; gap: 16px; }
-.wdc-stat { display: flex; flex-direction: column; align-items: center; flex: 1; background: var(--gl-bg); border-radius: 8px; padding: 10px; }
-.wdcs-val { font-size: 20px; font-weight: 700; color: var(--gl-navy); line-height: 1; }
-.wdcs-lbl { font-size: 11px; color: var(--gl-text-muted); margin-top: 4px; }
+.wdc-stats {
+  display: flex;
+  gap: 16px;
+}
+.wdc-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  background: var(--gl-bg);
+  border-radius: 8px;
+  padding: 10px;
+}
+.wdcs-val {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gl-navy);
+  line-height: 1;
+}
+.wdcs-lbl {
+  font-size: 11px;
+  color: var(--gl-text-muted);
+  margin-top: 4px;
+}
 
-.wdc-footer { display: flex; padding: 10px 14px; border-top: 1px solid var(--gl-border); gap: 8px; }
+.wdc-footer {
+  display: flex;
+  padding: 10px 14px;
+  border-top: 1px solid var(--gl-border);
+  gap: 8px;
+}
 
-.dialog-form { display: flex; flex-direction: column; gap: 14px; }
-.empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  .p-inputtext {
+    width: 100%;
+  }
+  .p-select {
+    width: 100%;
+  }
+}
+.empty-state {
+  text-align: center;
+  padding: 24px;
+  color: var(--gl-text-muted);
+  font-size: 14px;
+}
 </style>

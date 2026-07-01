@@ -110,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '@/stores/auth'
@@ -134,6 +134,13 @@ const docStore = useDocumentStore()
 const form = ref({
   warehouseId: null, supplierId: null, remark: '',
   items: [],
+})
+
+onMounted(() => {
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+  if (!masterStore.suppliers.length) masterStore.fetchSuppliers()
 })
 
 function addItem() {

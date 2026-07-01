@@ -467,6 +467,12 @@ function saveManualTime() {
 onMounted(() => document.addEventListener('click', closePicker));
 onUnmounted(() => { document.removeEventListener('click', closePicker); closePicker(); });
 
+onMounted(() => {
+  if (!masterStore.products.length) masterStore.fetchProducts();
+  if (!masterStore.units.length) masterStore.fetchUnits();
+  if (!masterStore.machines.length) masterStore.fetchMachines();
+});
+
 function initMix() {
   if (!order.value) return;
   const ings = order.value.ingredients;

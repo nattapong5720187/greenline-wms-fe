@@ -67,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
 import { useStockStore } from '@/stores/stock'
@@ -84,6 +84,13 @@ const stockStore = useStockStore()
 const notifStore = useNotificationStore()
 
 const search = ref('')
+
+onMounted(() => {
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+  if (!masterStore.categories.length) masterStore.fetchCategories()
+})
 
 const filteredProducts = computed(() =>
   masterStore.products.filter(p => {

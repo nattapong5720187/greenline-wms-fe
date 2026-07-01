@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '@/stores/auth'
@@ -149,6 +149,12 @@ const toast = useToast()
 const authStore = useAuthStore()
 const masterStore = useMasterStore()
 const docStore = useDocumentStore()
+
+onMounted(() => {
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
+  if (!masterStore.products.length) masterStore.fetchProducts()
+  if (!masterStore.units.length) masterStore.fetchUnits()
+})
 
 const doc = computed(() => docStore.getById(route.params.id))
 
