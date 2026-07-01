@@ -356,7 +356,7 @@ const packagingTypeOptions = [
 ];
 const packagingSizeOptions = computed(() =>
   masterStore.packagingSizes.map((p) => ({
-    label: `${p.size.toLocaleString()} ${p.unit || ""}`.trim(),
+    label: p.label,
     value: p.id,
   })),
 );

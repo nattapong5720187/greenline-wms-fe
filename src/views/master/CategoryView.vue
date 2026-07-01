@@ -9,25 +9,15 @@
     </div>
 
     <div class="page-card">
-      <DataTable :value="masterStore.categories" size="small" stripedRows>
+      <DataTable :value="masterStore.categories" :loading="loading" size="small" stripedRows>
+        <template #empty>
+          <div class="empty-state">ไม่มีข้อมูลประเภทสินค้า</div>
+        </template>
         <Column field="code" header="รหัส" style="width: 100px; font-family: monospace;" />
-        <Column header="ชื่อประเภท">
+        <Column field="name" header="ชื่อประเภท" />
+        <Column header="ประเภทหลัก" style="width: 160px;">
           <template #body="{ data }">
-            <span class="cat-chip" :style="{ background: data.color + '22', color: data.color, borderColor: data.color + '44' }">
-              {{ data.name }}
-            </span>
-          </template>
-        </Column>
-        <Column header="บังคับ Lot" style="width: 100px; text-align: center;">
-          <template #body="{ data }">
-            <i :class="data.requireLot ? 'pi pi-check-circle' : 'pi pi-times-circle'"
-               :style="{ color: data.requireLot ? 'var(--gl-success)' : '#cbd5e1', fontSize: '16px' }" />
-          </template>
-        </Column>
-        <Column header="มีวันหมดอายุ" style="width: 120px; text-align: center;">
-          <template #body="{ data }">
-            <i :class="data.hasExpiry ? 'pi pi-check-circle' : 'pi pi-times-circle'"
-               :style="{ color: data.hasExpiry ? 'var(--gl-success)' : '#cbd5e1', fontSize: '16px' }" />
+            {{ data.parentId ? masterStore.getCategoryById(data.parentId)?.name || '-' : '-' }}
           </template>
         </Column>
         <Column header="จำนวน SKU" style="width: 110px;">
@@ -47,7 +37,7 @@
     </div>
 
     <Dialog v-model:visible="showDialog" :header="editing ? 'แก้ไขประเภท' : 'เพิ่มประเภทสินค้า'"
-      :modal="true" :style="{ width: '420px' }">
+      :modal="true" :style="{ width: '420px' }" :closable="!saving">
       <div class="dialog-form">
         <div>
           <label class="field-label">รหัส <span class="req">*</span></label>
@@ -58,33 +48,21 @@
           <InputText v-model="form.name" class="w-full" placeholder="ชื่อประเภท" />
         </div>
         <div>
-          <label class="field-label">สี</label>
-          <div class="color-row">
-            <input type="color" v-model="form.color" class="color-input" />
-            <span style="font-size: 13px; color: var(--gl-text-muted);">{{ form.color }}</span>
-          </div>
-        </div>
-        <div class="check-row">
-          <div class="check-item">
-            <Checkbox v-model="form.requireLot" inputId="cl_rl" :binary="true" />
-            <label for="cl_rl">บังคับ Lot</label>
-          </div>
-          <div class="check-item">
-            <Checkbox v-model="form.hasExpiry" inputId="cl_he" :binary="true" />
-            <label for="cl_he">มีวันหมดอายุ</label>
-          </div>
+          <label class="field-label">ประเภทหลัก (ถ้ามี)</label>
+          <Dropdown v-model="form.parentId" :options="parentOptions" optionLabel="name" optionValue="id"
+            class="w-full" placeholder="ไม่มี (เป็นประเภทหลัก)" showClear />
         </div>
       </div>
       <template #footer>
-        <Button label="ยกเลิก" outlined @click="showDialog = false" />
-        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" @click="handleSave" />
+        <Button label="ยกเลิก" outlined @click="showDialog = false" :disabled="saving" />
+        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" :loading="saving" @click="handleSave" />
       </template>
     </Dialog>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
@@ -93,40 +71,70 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
-import Checkbox from 'primevue/checkbox'
+import Dropdown from 'primevue/dropdown'
 
 const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
 
+const loading = ref(false)
 const showDialog = ref(false)
+const saving = ref(false)
 const editing = ref(null)
-const form = ref({ code: '', name: '', color: '#3B82F6', requireLot: false, hasExpiry: false })
+const form = ref(defaultForm())
+
+function defaultForm() {
+  return { code: '', name: '', parentId: null }
+}
+
+const parentOptions = computed(() =>
+  masterStore.categories.filter(c => c.id !== editing.value?.id)
+)
 
 function getProductCount(catId) {
   return masterStore.products.filter(p => p.categoryId === catId).length
 }
 
+async function fetchCategories() {
+  loading.value = true
+  try {
+    await masterStore.fetchCategories()
+  } catch {
+    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchCategories)
+
 function openDialog(item = null) {
   editing.value = item
-  if (item) Object.assign(form.value, { ...item })
-  else form.value = { code: '', name: '', color: '#3B82F6', requireLot: false, hasExpiry: false }
+  form.value = item ? { code: item.code, name: item.name, parentId: item.parentId } : defaultForm()
   showDialog.value = true
 }
 
-function handleSave() {
+async function handleSave() {
   if (!form.value.code || !form.value.name) {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกข้อมูลให้ครบ', life: 3000 })
     return
   }
-  if (editing.value) {
-    masterStore.updateCategory(editing.value.id, form.value)
-    toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
-  } else {
-    masterStore.addCategory(form.value)
-    toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+  saving.value = true
+  try {
+    if (editing.value) {
+      await masterStore.updateCategory(editing.value.id, { ...form.value })
+      toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
+    } else {
+      await masterStore.addCategory({ ...form.value })
+      toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+    }
+    showDialog.value = false
+  } catch (e) {
+    const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+    toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+  } finally {
+    saving.value = false
   }
-  showDialog.value = false
 }
 
 function confirmDelete(item) {
@@ -135,21 +143,22 @@ function confirmDelete(item) {
     header: 'ยืนยันการลบ',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
-    accept: () => {
-      masterStore.deleteCategory(item.id)
-      toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+    accept: async () => {
+      try {
+        await masterStore.deleteCategory(item.id)
+        toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+      } catch (e) {
+        const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
     }
   })
 }
 </script>
 
 <style scoped>
-.cat-chip { padding: 3px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid; }
 .count-badge { background: var(--gl-bg); border: 1px solid var(--gl-border); border-radius: 6px; padding: 2px 10px; font-size: 13px; font-weight: 600; color: var(--gl-navy); }
 .action-btns { display: flex; gap: 4px; }
 .dialog-form { display: flex; flex-direction: column; gap: 14px; }
-.color-row { display: flex; align-items: center; gap: 10px; }
-.color-input { width: 48px; height: 36px; border-radius: 8px; border: 1px solid var(--gl-border); cursor: pointer; padding: 2px; }
-.check-row { display: flex; gap: 20px; }
-.check-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }
 </style>

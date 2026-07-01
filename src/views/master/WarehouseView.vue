@@ -3,12 +3,14 @@
     <div class="page-header">
       <div>
         <div class="page-title">คลังสินค้า</div>
-        <div class="page-subtitle">จัดการ 3 คลังหลัก</div>
+        <div class="page-subtitle">จัดการคลังสินค้า ({{ masterStore.warehouses.length }} คลัง)</div>
       </div>
       <Button label="เพิ่มคลัง" icon="pi pi-plus" class="btn-primary" @click="openDialog()" />
     </div>
 
-    <div class="wh-grid">
+    <div v-if="loading" class="empty-state">กำลังโหลดข้อมูล...</div>
+    <div v-else-if="!masterStore.warehouses.length" class="empty-state">ไม่มีข้อมูลคลังสินค้า</div>
+    <div v-else class="wh-grid">
       <div class="wh-detail-card" v-for="wh in masterStore.warehouses" :key="wh.id">
         <div class="wdc-header" :style="{ background: whTypeColor(wh.type) }">
           <i class="pi pi-building wdc-icon" />
@@ -19,7 +21,6 @@
           <span class="wdc-type-badge">{{ whTypeLabel(wh.type) }}</span>
         </div>
         <div class="wdc-body">
-          <div class="wdc-desc">{{ wh.description }}</div>
           <div class="wdc-stats">
             <div class="wdc-stat">
               <span class="wdcs-val">{{ stockStore.getStockByWarehouse(wh.id).length }}</span>
@@ -37,13 +38,14 @@
         </div>
         <div class="wdc-footer">
           <Button icon="pi pi-pencil" label="แก้ไข" text size="small" @click="openDialog(wh)" />
+          <Button icon="pi pi-trash" label="ลบ" text size="small" severity="danger" @click="confirmDelete(wh)" />
           <Button icon="pi pi-eye" label="ดูสต๊อก" text size="small" @click="$router.push('/stock/by-warehouse')" />
         </div>
       </div>
     </div>
 
     <Dialog v-model:visible="showDialog" :header="editing ? 'แก้ไขคลัง' : 'เพิ่มคลังสินค้า'"
-      :modal="true" :style="{ width: '420px' }">
+      :modal="true" :style="{ width: '420px' }" :closable="!saving">
       <div class="dialog-form">
         <div>
           <label class="field-label">รหัสคลัง <span class="req">*</span></label>
@@ -54,40 +56,43 @@
           <InputText v-model="form.name" class="w-full" placeholder="ชื่อคลัง" />
         </div>
         <div>
-          <label class="field-label">รายละเอียด</label>
-          <Textarea v-model="form.description" class="w-full" rows="2" />
-        </div>
-        <div>
           <label class="field-label">ประเภทคลัง</label>
           <Dropdown v-model="form.type" :options="typeOptions" optionLabel="label" optionValue="value" class="w-full" />
         </div>
       </div>
       <template #footer>
-        <Button label="ยกเลิก" outlined @click="showDialog = false" />
-        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" @click="handleSave" />
+        <Button label="ยกเลิก" outlined @click="showDialog = false" :disabled="saving" />
+        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" :loading="saving" @click="handleSave" />
       </template>
     </Dialog>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
 import { useStockStore } from '@/stores/stock'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
 import Dropdown from 'primevue/dropdown'
 
 const masterStore = useMasterStore()
 const stockStore = useStockStore()
+const confirm = useConfirm()
 const toast = useToast()
 
+const loading = ref(false)
 const showDialog = ref(false)
+const saving = ref(false)
 const editing = ref(null)
-const form = ref({ code: '', name: '', description: '', type: 'main', active: true })
+const form = ref(defaultForm())
+
+function defaultForm() {
+  return { code: '', name: '', type: 'main' }
+}
 
 const typeOptions = [
   { label: 'คลังหลัก', value: 'main' },
@@ -107,26 +112,64 @@ function holdCount(whId) {
   return stockStore.holdItems.filter(h => h.warehouseId === whId && h.status === 'hold').length
 }
 
+async function fetchWarehouses() {
+  loading.value = true
+  try {
+    await masterStore.fetchWarehouses()
+  } catch {
+    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchWarehouses)
+
 function openDialog(item = null) {
   editing.value = item
-  if (item) Object.assign(form.value, { ...item })
-  else form.value = { code: '', name: '', description: '', type: 'main', active: true }
+  form.value = item ? { code: item.code, name: item.name, type: item.type } : defaultForm()
   showDialog.value = true
 }
 
-function handleSave() {
+async function handleSave() {
   if (!form.value.code || !form.value.name) {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกข้อมูลให้ครบ', life: 3000 })
     return
   }
-  if (editing.value) {
-    masterStore.updateWarehouse(editing.value.id, form.value)
-    toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
-  } else {
-    masterStore.addWarehouse(form.value)
-    toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+  saving.value = true
+  try {
+    if (editing.value) {
+      await masterStore.updateWarehouse(editing.value.id, { ...form.value })
+      toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
+    } else {
+      await masterStore.addWarehouse({ ...form.value })
+      toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+    }
+    showDialog.value = false
+  } catch (e) {
+    const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+    toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+  } finally {
+    saving.value = false
   }
-  showDialog.value = false
+}
+
+function confirmDelete(item) {
+  confirm.require({
+    message: `ลบคลัง "${item.name}" ใช่หรือไม่?`,
+    header: 'ยืนยันการลบ',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await masterStore.deleteWarehouse(item.id)
+        toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+      } catch (e) {
+        const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
+    }
+  })
 }
 </script>
 
@@ -152,7 +195,6 @@ function handleSave() {
 .wdc-type-badge { margin-left: auto; background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; }
 
 .wdc-body { padding: 16px 20px; }
-.wdc-desc { font-size: 13px; color: var(--gl-text-muted); margin-bottom: 14px; }
 
 .wdc-stats { display: flex; gap: 16px; }
 .wdc-stat { display: flex; flex-direction: column; align-items: center; flex: 1; background: var(--gl-bg); border-radius: 8px; padding: 10px; }
@@ -162,4 +204,5 @@ function handleSave() {
 .wdc-footer { display: flex; padding: 10px 14px; border-top: 1px solid var(--gl-border); gap: 8px; }
 
 .dialog-form { display: flex; flex-direction: column; gap: 14px; }
+.empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }
 </style>

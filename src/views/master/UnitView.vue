@@ -9,14 +9,12 @@
     </div>
 
     <div class="page-card">
-      <DataTable :value="masterStore.units" size="small" stripedRows>
+      <DataTable :value="masterStore.units" :loading="loading" size="small" stripedRows>
+        <template #empty>
+          <div class="empty-state">ไม่มีข้อมูลหน่วยนับ</div>
+        </template>
         <Column field="code" header="รหัส" style="width: 100px; font-family: monospace;" sortable />
         <Column field="name" header="ชื่อหน่วย" sortable />
-        <Column field="abbr" header="ตัวย่อ" style="width: 100px;">
-          <template #body="{ data }">
-            <code style="background: var(--gl-bg); padding: 2px 8px; border-radius: 4px; font-size: 12px;">{{ data.abbr }}</code>
-          </template>
-        </Column>
         <Column header="ใช้งาน (SKU)" style="width: 120px;">
           <template #body="{ data }">
             <span class="count-badge">{{ getUsageCount(data.id) }}</span>
@@ -34,7 +32,7 @@
     </div>
 
     <Dialog v-model:visible="showDialog" :header="editing ? 'แก้ไขหน่วย' : 'เพิ่มหน่วยนับ'"
-      :modal="true" :style="{ width: '360px' }">
+      :modal="true" :style="{ width: '360px' }" :closable="!saving">
       <div class="dialog-form">
         <div>
           <label class="field-label">รหัส <span class="req">*</span></label>
@@ -44,21 +42,17 @@
           <label class="field-label">ชื่อหน่วย <span class="req">*</span></label>
           <InputText v-model="form.name" class="w-full" placeholder="เช่น กิโลกรัม" />
         </div>
-        <div>
-          <label class="field-label">ตัวย่อ <span class="req">*</span></label>
-          <InputText v-model="form.abbr" class="w-full" placeholder="เช่น kg" />
-        </div>
       </div>
       <template #footer>
-        <Button label="ยกเลิก" outlined @click="showDialog = false" />
-        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" @click="handleSave" />
+        <Button label="ยกเลิก" outlined @click="showDialog = false" :disabled="saving" />
+        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" :loading="saving" @click="handleSave" />
       </template>
     </Dialog>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
@@ -72,32 +66,54 @@ const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
 
+const loading = ref(false)
 const showDialog = ref(false)
+const saving = ref(false)
 const editing = ref(null)
-const form = ref({ code: '', name: '', abbr: '' })
+const form = ref({ code: '', name: '' })
 
 function getUsageCount(unitId) { return masterStore.products.filter(p => p.unitId === unitId).length }
 
+async function fetchUnits() {
+  loading.value = true
+  try {
+    await masterStore.fetchUnits()
+  } catch {
+    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchUnits)
+
 function openDialog(item = null) {
   editing.value = item
-  if (item) Object.assign(form.value, { ...item })
-  else form.value = { code: '', name: '', abbr: '' }
+  form.value = item ? { code: item.code, name: item.name } : { code: '', name: '' }
   showDialog.value = true
 }
 
-function handleSave() {
-  if (!form.value.code || !form.value.name || !form.value.abbr) {
+async function handleSave() {
+  if (!form.value.code || !form.value.name) {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกข้อมูลให้ครบ', life: 3000 })
     return
   }
-  if (editing.value) {
-    masterStore.updateUnit(editing.value.id, form.value)
-    toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
-  } else {
-    masterStore.addUnit(form.value)
-    toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+  saving.value = true
+  try {
+    if (editing.value) {
+      await masterStore.updateUnit(editing.value.id, { code: form.value.code, name: form.value.name })
+      toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
+    } else {
+      await masterStore.addUnit({ code: form.value.code, name: form.value.name })
+      toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+    }
+    showDialog.value = false
+  } catch (e) {
+    const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+    toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+  } finally {
+    saving.value = false
   }
-  showDialog.value = false
 }
 
 function confirmDelete(item) {
@@ -106,9 +122,14 @@ function confirmDelete(item) {
     header: 'ยืนยันการลบ',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
-    accept: () => {
-      masterStore.deleteUnit(item.id)
-      toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+    accept: async () => {
+      try {
+        await masterStore.deleteUnit(item.id)
+        toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+      } catch (e) {
+        const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
     }
   })
 }
@@ -117,4 +138,5 @@ function confirmDelete(item) {
 .count-badge { background: var(--gl-bg); border: 1px solid var(--gl-border); border-radius: 6px; padding: 2px 10px; font-size: 13px; font-weight: 600; color: var(--gl-navy); }
 .action-btns { display: flex; gap: 4px; }
 .dialog-form { display: flex; flex-direction: column; gap: 14px; }
+.empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }
 </style>

@@ -1,96 +1,9 @@
 // ===== Greenline WMS — Mock Data =====
 
-export const WAREHOUSES = [
-  { id: 'WH01', code: 'WH01', name: 'คลังหลัก', description: 'คลังหลักโรงงาน', type: 'main', active: true },
-  { id: 'WH02', code: 'WH02', name: 'ห้องเย็น 1', description: 'ห้องเย็นโรงงาน', type: 'cold', active: true },
-  { id: 'WH03', code: 'WH03', name: 'ห้องเย็น 2', description: 'ห้องเย็นฝากภายนอก', type: 'cold_external', active: true },
-]
-
-export const CATEGORIES = [
-  { id: 'CAT01', code: 'RM',    name: 'วัตถุดิบ',           color: '#3B82F6', requireLot: true,  hasExpiry: true  },
-  { id: 'CAT02', code: 'CHEM',  name: 'สาร',                color: '#8B5CF6', requireLot: true,  hasExpiry: true  },
-  { id: 'CAT03', code: 'LBL',   name: 'ฉลาก',               color: '#10B981', requireLot: false, hasExpiry: false },
-  { id: 'CAT04', code: 'BOX',   name: 'กล่อง',               color: '#F59E0B', requireLot: false, hasExpiry: false },
-  { id: 'CAT05', code: 'CRT',   name: 'ลัง',                 color: '#EF4444', requireLot: false, hasExpiry: false },
-  { id: 'CAT06', code: 'CAN',   name: 'กระป๋อง/ฝา',          color: '#6B7280', requireLot: false, hasExpiry: false },
-  { id: 'CAT07', code: 'BAG',   name: 'ถุง',                 color: '#EC4899', requireLot: false, hasExpiry: false },
-  { id: 'CAT08', code: 'CHM2',  name: 'สารเคมี',             color: '#F97316', requireLot: true,  hasExpiry: true  },
-  { id: 'CAT09', code: 'CONS1', name: 'สิ้นเปลืองผลิต',      color: '#14B8A6', requireLot: false, hasExpiry: false },
-  { id: 'CAT10', code: 'CONS2', name: 'สิ้นเปลืองสำนักงาน',  color: '#A855F7', requireLot: false, hasExpiry: false },
-  { id: 'CAT11', code: 'PM',    name: 'Premix',              color: '#84CC16', requireLot: true,  hasExpiry: true  },
-]
-
-export const UNITS = [
-  { id: 'U01', code: 'KG',   name: 'กิโลกรัม',   abbr: 'kg'   },
-  { id: 'U02', code: 'G',    name: 'กรัม',        abbr: 'g'    },
-  { id: 'U03', code: 'L',    name: 'ลิตร',        abbr: 'L'    },
-  { id: 'U04', code: 'ML',   name: 'มิลลิลิตร',   abbr: 'mL'   },
-  { id: 'U05', code: 'PCS',  name: 'ชิ้น',        abbr: 'pcs'  },
-  { id: 'U06', code: 'BOX',  name: 'กล่อง',       abbr: 'box'  },
-  { id: 'U07', code: 'BAG',  name: 'ถุง',         abbr: 'bag'  },
-  { id: 'U08', code: 'ROLL', name: 'ม้วน',        abbr: 'roll' },
-  { id: 'U09', code: 'CAN',  name: 'กระป๋อง',     abbr: 'can'  },
-  { id: 'U10', code: 'SET',  name: 'ชุด',         abbr: 'set'  },
-]
-
-export const MACHINES = [
-  { id: 'MC01', machineId: 'HM-001', name: 'Homo Mixer 1',  type: 'homo mixer',   active: true },
-  { id: 'MC02', machineId: 'HM-002', name: 'Homo Mixer 2',  type: 'homo mixer',   active: true },
-  { id: 'MC03', machineId: 'RM-001', name: 'Ribbon Mixer 1', type: 'ribbon mixer', active: true },
-  { id: 'MC04', machineId: 'RM-002', name: 'Ribbon Mixer 2', type: 'ribbon mixer', active: true }
-]
-
 export const MIXSIZES = [
   { id: 'MX01', size: 30, unitId: 'U01' },
   { id: 'MX02', size: 40, unitId: 'U01' },
   { id: 'MX03', size: 50, unitId: 'U01' },
-]
-
-export const PACKAGING_SIZES = [
-  { id: 'PKG01', size: 70,  unit: 'g.' },
-  { id: 'PKG02', size: 80,  unit: 'g.' },
-  { id: 'PKG03', size: 85,  unit: 'g.' },
-  { id: 'PKG04', size: 90,  unit: 'g.' },
-  { id: 'PKG05', size: 400, unit: 'g.' },
-]
-
-export const BRANDS = [
-  { id: 'BR01', name: 'Kandy' },
-  { id: 'BR02', name: 'Franc' },
-  { id: 'BR03', name: 'Mika' },
-]
-
-export const SUPPLIERS = [
-  { id: 'SUP001', code: 'SUP001', name: 'บริษัท อาหารสด จำกัด',       contact: 'คุณสมชาย', phone: '02-111-1111', active: true },
-  { id: 'SUP002', code: 'SUP002', name: 'บริษัท เคมีภัณฑ์ไทย จำกัด',  contact: 'คุณสมหญิง', phone: '02-222-2222', active: true },
-  { id: 'SUP003', code: 'SUP003', name: 'บริษัท บรรจุภัณฑ์ไทย จำกัด', contact: 'คุณมานี',   phone: '02-333-3333', active: true },
-  { id: 'SUP004', code: 'SUP004', name: 'ห้างหุ้นส่วน วัตถุดิบดี',    contact: 'คุณปิติ',   phone: '089-444-4444', active: true },
-  { id: 'SUP005', code: 'SUP005', name: 'บริษัท พรีมิกซ์โปร จำกัด',   contact: 'คุณพร',    phone: '081-555-5555', active: true },
-]
-
-export const PRODUCTS = [
-  { id: 'P001', code: 'RM-001',  name: 'เนื้อไก่สด',             categoryId: 'CAT01', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH02', minStock: 500,  requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P002', code: 'RM-002',  name: 'เนื้อหมูสับ',            categoryId: 'CAT01', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH02', minStock: 300,  requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P003', code: 'RM-003',  name: 'แครอทหั่น',              categoryId: 'CAT01', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH02', minStock: 200,  requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P004', code: 'PM-001',  name: 'Premix A (สูตร 001)',     categoryId: 'CAT11', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 100,  requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P005', code: 'PM-002',  name: 'Premix B (สูตร 002)',     categoryId: 'CAT11', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 50,   requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P006', code: 'CHEM-001',name: 'วิตามิน C',               categoryId: 'CAT02', unitId: 'U02', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 5000, requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P007', code: 'CHEM-002',name: 'เกลือไนไตรท์',           categoryId: 'CAT02', unitId: 'U02', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 2000, requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P008', code: 'LBL-001', name: 'ฉลากสินค้า A',           categoryId: 'CAT03', unitId: 'U05', stockStatus: 'FG',        warehouseId: 'WH01', minStock: 5000, requireLot: false, hasExpiry: false, active: true },
-  { id: 'P009', code: 'BOX-001', name: 'กล่องบรรจุ 500g',         categoryId: 'CAT04', unitId: 'U05', stockStatus: 'FG',        warehouseId: 'WH01', minStock: 1000, requireLot: false, hasExpiry: false, active: true },
-  { id: 'P010', code: 'CRT-001', name: 'ลังกระดาษ (24 กล่อง)',    categoryId: 'CAT05', unitId: 'U05', stockStatus: 'FG',        warehouseId: 'WH01', minStock: 500,  requireLot: false, hasExpiry: false, active: true },
-  { id: 'P011', code: 'CAN-001', name: 'กระป๋อง 300g',            categoryId: 'CAT06', unitId: 'U05', stockStatus: 'FG',        warehouseId: 'WH01', minStock: 2000, requireLot: false, hasExpiry: false, active: true },
-  { id: 'P012', code: 'BAG-001', name: 'ถุง PE (50x70)',           categoryId: 'CAT07', unitId: 'U05', stockStatus: 'FG',        warehouseId: 'WH01', minStock: 3000, requireLot: false, hasExpiry: false, active: true },
-  { id: 'P013', code: 'CHM-001', name: 'น้ำยาล้างพื้น',           categoryId: 'CAT08', unitId: 'U03', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 50,   requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P014', code: 'CONS1-01',name: 'ถุงมือยาง (ผลิต)',        categoryId: 'CAT09', unitId: 'U06', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 20,   requireLot: false, hasExpiry: false, active: true },
-  { id: 'P015', code: 'CONS2-01',name: 'กระดาษ A4',               categoryId: 'CAT10', unitId: 'U06', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 10,   requireLot: false, hasExpiry: false, active: true },
-  { id: 'P016', code: 'SEMI-001',name: 'ซอสมะเขือเทศ (Semi)',      categoryId: 'CAT01', unitId: 'U01', stockStatus: 'Semi',      warehouseId: 'WH02', minStock: 200,  requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P017', code: 'FG-001',  name: 'ไก่กระป๋อง (สำเร็จรูป)', categoryId: 'CAT01', unitId: 'U05', stockStatus: 'FG',        warehouseId: 'WH02', minStock: 500,  requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P018', code: 'RM-004',  name: 'หัวหอมใหญ่',             categoryId: 'CAT01', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 100,  requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P019', code: 'RM-005',  name: 'กระเทียม',               categoryId: 'CAT01', unitId: 'U01', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 80,   requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P020', code: 'RM-006',  name: 'พริกไทย',                categoryId: 'CAT01', unitId: 'U02', stockStatus: 'RM',        warehouseId: 'WH01', minStock: 5000, requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P021', code: 'SEMI-002',name: 'ไก่ปรุงรส (Semi)',        categoryId: 'CAT01', unitId: 'U05', stockStatus: 'Semi',      warehouseId: 'WH02', minStock: 300,  requireLot: true,  hasExpiry: true,  active: true },
-  { id: 'P022', code: 'SEMI-003',name: 'หมูสับผสมแครอท (Semi)',    categoryId: 'CAT01', unitId: 'U05', stockStatus: 'Semi',      warehouseId: 'WH02', minStock: 200,  requireLot: true,  hasExpiry: true,  active: true },
 ]
 
 export const LOTS = [

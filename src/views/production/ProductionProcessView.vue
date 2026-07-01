@@ -359,10 +359,10 @@ function unitAbbrOf(id) {
 // ---- machine options ----
 const machineOptionsByType = (type) =>
   masterStore.machines
-    .filter((m) => m.active && m.type === type)
-    .map((m) => ({ label: `${m.machineId} — ${m.name}`, value: m.id }));
-const homoMixerOptions = computed(() => machineOptionsByType("homo mixer"));
-const ribbonMixerOptions = computed(() => machineOptionsByType("ribbon mixer"));
+    .filter((m) => m.isActive && m.type === type)
+    .map((m) => ({ label: `${m.code} — ${m.name}`, value: m.id }));
+const homoMixerOptions = computed(() => machineOptionsByType("HOMO_MIXER"));
+const ribbonMixerOptions = computed(() => machineOptionsByType("RIBBON_MIXER"));
 
 // ---- Step 1: confirm (editable) ----
 const premixRows = ref([]);
@@ -568,7 +568,7 @@ function doCompleteMixing() {
 
 function machineLabel(id) {
   const m = masterStore.getMachineById(id);
-  return m ? `${m.machineId} — ${m.name}` : "—";
+  return m ? `${m.code} — ${m.name}` : "—";
 }
 
 function downloadMixReport(type) {

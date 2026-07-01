@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">{{ isEdit ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่' }}</div>
-        <div class="page-subtitle">{{ isEdit ? `รหัส: ${form.code}` : 'กรอกข้อมูลสินค้า/SKU' }}</div>
+        <div class="page-subtitle">{{ isEdit ? `SKU: ${form.sku}` : 'กรอกข้อมูลสินค้า/SKU' }}</div>
       </div>
       <RouterLink to="/master/products">
         <Button label="ย้อนกลับ" icon="pi pi-arrow-left" outlined />
@@ -14,15 +14,15 @@
       <form @submit.prevent="handleSave">
         <div class="form-grid">
           <div>
-            <label class="field-label">รหัสสินค้า <span class="req">*</span></label>
-            <InputText v-model="form.code" class="w-full" placeholder="เช่น RM-001" required />
+            <label class="field-label">SKU <span class="req">*</span></label>
+            <InputText v-model="form.sku" class="w-full" placeholder="เช่น SKU-001" required />
           </div>
           <div>
             <label class="field-label">ชื่อสินค้า <span class="req">*</span></label>
             <InputText v-model="form.name" class="w-full" placeholder="ชื่อสินค้า" required />
           </div>
           <div>
-            <label class="field-label">ประเภทสินค้า <span class="req">*</span></label>
+            <label class="field-label">ประเภทสินค้า (หมวดหมู่) <span class="req">*</span></label>
             <Dropdown
               v-model="form.categoryId"
               :options="masterStore.categories"
@@ -46,27 +46,8 @@
             />
           </div>
           <div>
-            <label class="field-label">คลังที่เก็บ <span class="req">*</span></label>
-            <Dropdown
-              v-model="form.warehouseId"
-              :options="masterStore.warehouses"
-              optionLabel="name"
-              optionValue="id"
-              placeholder="เลือกคลัง"
-              class="w-full"
-              required
-            />
-          </div>
-          <div>
-            <label class="field-label">สถานะสินค้า <span class="req">*</span></label>
-            <Dropdown
-              v-model="form.stockStatus"
-              :options="stockStatusOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="เลือกสถานะ"
-              class="w-full"
-            />
+            <label class="field-label">Product Type <span class="req">*</span></label>
+            <InputText v-model="form.productType" class="w-full" placeholder="เช่น FINISHED_GOOD" required />
           </div>
           <div>
             <label class="field-label">Min Stock (จำนวนขั้นต่ำ)</label>
@@ -76,12 +57,8 @@
             <label class="field-label">การตั้งค่าเพิ่มเติม</label>
             <div class="checks">
               <div class="check-item">
-                <Checkbox v-model="form.requireLot" inputId="requireLot" :binary="true" />
-                <label for="requireLot">บังคับใส่ Lot</label>
-              </div>
-              <div class="check-item">
-                <Checkbox v-model="form.hasExpiry" inputId="hasExpiry" :binary="true" />
-                <label for="hasExpiry">มีวันหมดอายุ</label>
+                <Checkbox v-model="form.hasLot" inputId="hasLot" :binary="true" />
+                <label for="hasLot">บังคับใส่ Lot</label>
               </div>
             </div>
           </div>
@@ -89,9 +66,9 @@
 
         <div class="form-actions">
           <RouterLink to="/master/products">
-            <Button label="ยกเลิก" outlined type="button" />
+            <Button label="ยกเลิก" outlined type="button" :disabled="saving" />
           </RouterLink>
-          <Button :label="isEdit ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'" icon="pi pi-save" class="btn-primary" type="submit" />
+          <Button :label="isEdit ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'" icon="pi pi-save" class="btn-primary" type="submit" :loading="saving" />
         </div>
       </form>
     </div>
@@ -115,39 +92,50 @@ const toast = useToast()
 const masterStore = useMasterStore()
 
 const isEdit = computed(() => !!route.params.id)
+const saving = ref(false)
 
 const form = ref({
-  code: '', name: '', categoryId: null, unitId: null,
-  warehouseId: null, stockStatus: 'RM', minStock: 0,
-  requireLot: false, hasExpiry: false, active: true,
+  sku: '', name: '', categoryId: null, unitId: null,
+  productType: '', minStock: 0, hasLot: false,
 })
 
-const stockStatusOptions = [
-  { label: 'RM (วัตถุดิบ)', value: 'RM' },
-  { label: 'Semi (กึ่งสำเร็จรูป)', value: 'Semi' },
-  { label: 'FG (สินค้าสำเร็จรูป)', value: 'FG' },
-]
-
-onMounted(() => {
+onMounted(async () => {
   if (isEdit.value) {
-    const p = masterStore.getProductById(route.params.id)
-    if (p) Object.assign(form.value, { ...p })
+    let p = masterStore.getProductById(route.params.id)
+    if (!p) {
+      await masterStore.fetchProducts()
+      p = masterStore.getProductById(route.params.id)
+    }
+    if (p) {
+      form.value = {
+        sku: p.sku, name: p.name, categoryId: p.categoryId, unitId: p.unitId,
+        productType: p.productType, minStock: p.minStock, hasLot: p.hasLot,
+      }
+    }
   }
 })
 
-function handleSave() {
-  if (!form.value.code || !form.value.name || !form.value.categoryId || !form.value.unitId || !form.value.warehouseId) {
+async function handleSave() {
+  if (!form.value.sku || !form.value.name || !form.value.categoryId || !form.value.unitId || !form.value.productType) {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกข้อมูลให้ครบถ้วน', life: 3000 })
     return
   }
-  if (isEdit.value) {
-    masterStore.updateProduct(route.params.id, form.value)
-    toast.add({ severity: 'success', summary: 'บันทึกสำเร็จ', detail: 'แก้ไขข้อมูลสินค้าแล้ว', life: 3000 })
-  } else {
-    masterStore.addProduct(form.value)
-    toast.add({ severity: 'success', summary: 'เพิ่มสินค้าสำเร็จ', detail: form.value.name, life: 3000 })
+  saving.value = true
+  try {
+    if (isEdit.value) {
+      await masterStore.updateProduct(route.params.id, { ...form.value })
+      toast.add({ severity: 'success', summary: 'บันทึกสำเร็จ', detail: 'แก้ไขข้อมูลสินค้าแล้ว', life: 3000 })
+    } else {
+      await masterStore.addProduct({ ...form.value })
+      toast.add({ severity: 'success', summary: 'เพิ่มสินค้าสำเร็จ', detail: form.value.name, life: 3000 })
+    }
+    router.push('/master/products')
+  } catch (e) {
+    const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+    toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+  } finally {
+    saving.value = false
   }
-  router.push('/master/products')
 }
 </script>
 

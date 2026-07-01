@@ -15,18 +15,12 @@
           <InputText v-model="search" placeholder="ค้นหา..." style="padding-left: 2.2rem; width: 260px;" />
         </span>
       </div>
-      <DataTable :value="filtered" size="small" stripedRows>
+      <DataTable :value="filtered" :loading="loading" size="small" stripedRows>
+        <template #empty>
+          <div class="empty-state">ไม่มีข้อมูลซัพพลายเออร์</div>
+        </template>
         <Column field="code" header="รหัส" style="width: 110px; font-family: monospace;" sortable />
         <Column field="name" header="ชื่อบริษัท/ผู้จำหน่าย" sortable />
-        <Column field="contact" header="ผู้ติดต่อ" style="width: 140px;" />
-        <Column field="phone" header="เบอร์โทร" style="width: 140px;" />
-        <Column header="สถานะ" style="width: 100px;">
-          <template #body="{ data }">
-            <span :class="['status-badge', data.active ? 'status-fg' : 'status-hold']">
-              {{ data.active ? 'ใช้งาน' : 'ระงับ' }}
-            </span>
-          </template>
-        </Column>
         <Column header="จัดการ" style="width: 100px;">
           <template #body="{ data }">
             <div class="action-btns">
@@ -39,7 +33,7 @@
     </div>
 
     <Dialog v-model:visible="showDialog" :header="editing ? 'แก้ไขซัพพลายเออร์' : 'เพิ่มซัพพลายเออร์'"
-      :modal="true" :style="{ width: '440px' }">
+      :modal="true" :style="{ width: '440px' }" :closable="!saving">
       <div class="dialog-form">
         <div>
           <label class="field-label">รหัส <span class="req">*</span></label>
@@ -49,25 +43,17 @@
           <label class="field-label">ชื่อบริษัท <span class="req">*</span></label>
           <InputText v-model="form.name" class="w-full" placeholder="ชื่อบริษัท/ผู้จำหน่าย" />
         </div>
-        <div>
-          <label class="field-label">ผู้ติดต่อ</label>
-          <InputText v-model="form.contact" class="w-full" placeholder="ชื่อผู้ติดต่อ" />
-        </div>
-        <div>
-          <label class="field-label">เบอร์โทร</label>
-          <InputText v-model="form.phone" class="w-full" placeholder="เบอร์โทรศัพท์" />
-        </div>
       </div>
       <template #footer>
-        <Button label="ยกเลิก" outlined @click="showDialog = false" />
-        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" @click="handleSave" />
+        <Button label="ยกเลิก" outlined @click="showDialog = false" :disabled="saving" />
+        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" :loading="saving" @click="handleSave" />
       </template>
     </Dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
@@ -81,10 +67,12 @@ const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
 
+const loading = ref(false)
 const showDialog = ref(false)
+const saving = ref(false)
 const editing = ref(null)
 const search = ref('')
-const form = ref({ code: '', name: '', contact: '', phone: '', active: true })
+const form = ref({ code: '', name: '' })
 
 const filtered = computed(() =>
   masterStore.suppliers.filter(s => {
@@ -93,26 +81,46 @@ const filtered = computed(() =>
   })
 )
 
+async function fetchSuppliers() {
+  loading.value = true
+  try {
+    await masterStore.fetchSuppliers()
+  } catch {
+    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchSuppliers)
+
 function openDialog(item = null) {
   editing.value = item
-  if (item) Object.assign(form.value, { ...item })
-  else form.value = { code: '', name: '', contact: '', phone: '', active: true }
+  form.value = item ? { code: item.code, name: item.name } : { code: '', name: '' }
   showDialog.value = true
 }
 
-function handleSave() {
+async function handleSave() {
   if (!form.value.code || !form.value.name) {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกข้อมูลให้ครบ', life: 3000 })
     return
   }
-  if (editing.value) {
-    masterStore.updateSupplier(editing.value.id, form.value)
-    toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
-  } else {
-    masterStore.addSupplier(form.value)
-    toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+  saving.value = true
+  try {
+    if (editing.value) {
+      await masterStore.updateSupplier(editing.value.id, { ...form.value })
+      toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
+    } else {
+      await masterStore.addSupplier({ ...form.value })
+      toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+    }
+    showDialog.value = false
+  } catch (e) {
+    const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+    toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+  } finally {
+    saving.value = false
   }
-  showDialog.value = false
 }
 
 function confirmDelete(item) {
@@ -120,9 +128,14 @@ function confirmDelete(item) {
     message: `ลบ "${item.name}" ใช่หรือไม่?`,
     header: 'ยืนยันการลบ',
     acceptClass: 'p-button-danger',
-    accept: () => {
-      masterStore.deleteSupplier(item.id)
-      toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+    accept: async () => {
+      try {
+        await masterStore.deleteSupplier(item.id)
+        toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+      } catch (e) {
+        const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
     }
   })
 }
@@ -133,4 +146,5 @@ function confirmDelete(item) {
 .search-wrap i { position: absolute; left: 0.75rem; z-index: 1; color: var(--gl-text-muted); }
 .action-btns { display: flex; gap: 4px; }
 .dialog-form { display: flex; flex-direction: column; gap: 14px; }
+.empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }
 </style>

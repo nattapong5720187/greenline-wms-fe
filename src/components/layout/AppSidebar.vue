@@ -43,8 +43,8 @@
 </template>
 
 <script setup>
-import { useNotificationStore } from "@/stores/notifications";
 import { useAuthStore } from "@/stores/auth";
+import { useNotificationStore } from "@/stores/notifications";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 
@@ -69,7 +69,7 @@ const navGroups = computed(() => [
       { display: true, to: "/master/packaging-sizes", icon: "pi pi-inbox", label: "ขนาดบรรจุภัณฑ์" },
       { display: true, to: "/master/brands", icon: "pi pi-bookmark", label: "ชื่อแบรนด์" },
       { display: true, to: "/master/warehouses", icon: "pi pi-building", label: "คลังสินค้า" },
-      { display: false, to: "/master/suppliers", icon: "pi pi-truck", label: "ซัพพลายเออร์" },
+      { display: true, to: "/master/suppliers", icon: "pi pi-truck", label: "ซัพพลายเออร์" },
       { display: true, to: "/master/machines", icon: "pi pi-cog", label: "เครื่องจักร" },
     ],
   },

@@ -9,12 +9,22 @@
     </div>
 
     <div class="page-card">
-      <DataTable :value="masterStore.machines" size="small" stripedRows>
-        <Column field="machineId" header="รหัสเครื่อง" style="width: 140px; font-family: monospace;" sortable />
+      <DataTable :value="masterStore.machines" :loading="loading" size="small" stripedRows>
+        <template #empty>
+          <div class="empty-state">ไม่มีข้อมูลเครื่องจักร</div>
+        </template>
+        <Column field="code" header="รหัสเครื่อง" style="width: 140px; font-family: monospace;" sortable />
         <Column field="name" header="ชื่อเครื่องจักร" sortable />
-        <Column field="type" header="ประเภท" style="width: 180px;">
+        <Column header="ประเภท" style="width: 180px;">
           <template #body="{ data }">
             <span class="type-badge">{{ typeLabel(data.type) }}</span>
+          </template>
+        </Column>
+        <Column header="สถานะ" style="width: 100px;">
+          <template #body="{ data }">
+            <span :class="['status-badge', data.isActive ? 'status-fg' : 'status-hold']">
+              {{ data.isActive ? 'ใช้งาน' : 'ระงับ' }}
+            </span>
           </template>
         </Column>
         <Column header="จัดการ" style="width: 100px;">
@@ -29,11 +39,11 @@
     </div>
 
     <Dialog v-model:visible="showDialog" :header="editing ? 'แก้ไขเครื่องจักร' : 'เพิ่มเครื่องจักร'"
-      :modal="true" :style="{ width: '400px' }">
+      :modal="true" :style="{ width: '400px' }" :closable="!saving">
       <div class="dialog-form">
         <div>
           <label class="field-label">รหัสเครื่อง <span class="req">*</span></label>
-          <InputText v-model="form.machineId" class="w-full" placeholder="เช่น HM-001" />
+          <InputText v-model="form.code" class="w-full" placeholder="เช่น HM-001" />
         </div>
         <div>
           <label class="field-label">ชื่อเครื่องจักร <span class="req">*</span></label>
@@ -44,17 +54,26 @@
           <Dropdown v-model="form.type" :options="typeOptions" optionLabel="label" optionValue="value"
             class="w-full" placeholder="เลือกประเภท" />
         </div>
+        <div v-if="editing" class="active-row">
+          <label class="field-label" style="margin: 0">สถานะ</label>
+          <div class="active-toggle">
+            <ToggleSwitch v-model="form.isActive" inputId="isActive" />
+            <label for="isActive" style="font-size: 13px; cursor: pointer">
+              {{ form.isActive ? 'ใช้งาน' : 'ระงับการใช้งาน' }}
+            </label>
+          </div>
+        </div>
       </div>
       <template #footer>
-        <Button label="ยกเลิก" outlined @click="showDialog = false" />
-        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" @click="handleSave" />
+        <Button label="ยกเลิก" outlined @click="showDialog = false" :disabled="saving" />
+        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" :loading="saving" @click="handleSave" />
       </template>
     </Dialog>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
@@ -64,43 +83,79 @@ import Column from 'primevue/column'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
+import ToggleSwitch from 'primevue/toggleswitch'
 
 const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
 
 const typeOptions = [
-  { label: 'Homo Mixer', value: 'homo mixer' },
-  { label: 'Ribbon Mixer', value: 'ribbon mixer' },
+  { label: 'Homo Mixer', value: 'HOMO_MIXER' },
+  { label: 'Ribbon Mixer', value: 'RIBBON_MIXER' },
 ]
 function typeLabel(value) {
   return typeOptions.find(t => t.value === value)?.label || value
 }
 
+const loading = ref(false)
 const showDialog = ref(false)
+const saving = ref(false)
 const editing = ref(null)
-const form = ref({ machineId: '', name: '', type: null })
+const form = ref(defaultForm())
+
+function defaultForm() {
+  return { code: '', name: '', type: null, isActive: true }
+}
+
+async function fetchMachines() {
+  loading.value = true
+  try {
+    await masterStore.fetchMachines()
+  } catch {
+    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchMachines)
 
 function openDialog(item = null) {
   editing.value = item
-  if (item) Object.assign(form.value, { ...item })
-  else form.value = { machineId: '', name: '', type: null }
+  form.value = item ? { code: item.code, name: item.name, type: item.type, isActive: item.isActive } : defaultForm()
   showDialog.value = true
 }
 
-function handleSave() {
-  if (!form.value.machineId || !form.value.name || !form.value.type) {
+async function handleSave() {
+  if (!form.value.code || !form.value.name || !form.value.type) {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกข้อมูลให้ครบ', life: 3000 })
     return
   }
-  if (editing.value) {
-    masterStore.updateMachine(editing.value.id, form.value)
-    toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
-  } else {
-    masterStore.addMachine(form.value)
-    toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+  saving.value = true
+  try {
+    if (editing.value) {
+      await masterStore.updateMachine(editing.value.id, {
+        code: form.value.code,
+        name: form.value.name,
+        type: form.value.type,
+        isActive: form.value.isActive,
+      })
+      toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
+    } else {
+      await masterStore.addMachine({
+        code: form.value.code,
+        name: form.value.name,
+        type: form.value.type,
+      })
+      toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+    }
+    showDialog.value = false
+  } catch (e) {
+    const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+    toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+  } finally {
+    saving.value = false
   }
-  showDialog.value = false
 }
 
 function confirmDelete(item) {
@@ -109,9 +164,14 @@ function confirmDelete(item) {
     header: 'ยืนยันการลบ',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
-    accept: () => {
-      masterStore.deleteMachine(item.id)
-      toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+    accept: async () => {
+      try {
+        await masterStore.deleteMachine(item.id)
+        toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+      } catch (e) {
+        const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
     }
   })
 }
@@ -120,4 +180,7 @@ function confirmDelete(item) {
 .type-badge { background: var(--gl-bg); border: 1px solid var(--gl-border); border-radius: 6px; padding: 2px 10px; font-size: 13px; font-weight: 600; color: var(--gl-navy); }
 .action-btns { display: flex; gap: 4px; }
 .dialog-form { display: flex; flex-direction: column; gap: 14px; }
+.active-row { display: flex; align-items: center; gap: 16px; }
+.active-toggle { display: flex; align-items: center; gap: 8px; }
+.empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }
 </style>

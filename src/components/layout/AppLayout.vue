@@ -4,9 +4,11 @@
     <div class="app-content" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
       <AppHeader />
       <main class="page-body">
-        <transition name="fade" mode="out-in">
-          <RouterView :key="route.fullPath" />
-        </transition>
+        <RouterView v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" :key="route.fullPath" />
+          </transition>
+        </RouterView>
       </main>
     </div>
   </div>

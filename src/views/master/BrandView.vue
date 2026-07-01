@@ -9,8 +9,18 @@
     </div>
 
     <div class="page-card">
-      <DataTable :value="masterStore.brands" size="small" stripedRows>
+      <DataTable :value="masterStore.brands" :loading="loading" size="small" stripedRows>
+        <template #empty>
+          <div class="empty-state">ไม่มีข้อมูลแบรนด์</div>
+        </template>
         <Column field="name" header="ชื่อแบรนด์" sortable />
+        <Column header="สถานะ" style="width:100px;">
+          <template #body="{ data }">
+            <span :class="['status-badge', data.isActive ? 'status-fg' : 'status-hold']">
+              {{ data.isActive ? 'ใช้งาน' : 'ระงับ' }}
+            </span>
+          </template>
+        </Column>
         <Column header="จัดการ" style="width:100px;">
           <template #body="{ data }">
             <div class="action-btns">
@@ -23,23 +33,32 @@
     </div>
 
     <Dialog v-model:visible="showDialog" :header="editing ? 'แก้ไขแบรนด์' : 'เพิ่มแบรนด์'"
-      :modal="true" :style="{ width: '380px' }">
+      :modal="true" :style="{ width: '380px' }" :closable="!saving">
       <div class="dialog-form">
         <div>
           <label class="field-label">ชื่อแบรนด์ <span class="req">*</span></label>
           <InputText v-model="form.name" style="width:100%;" placeholder="เช่น Kandy" />
         </div>
+        <div v-if="editing" class="active-row">
+          <label class="field-label" style="margin: 0">สถานะ</label>
+          <div class="active-toggle">
+            <ToggleSwitch v-model="form.isActive" inputId="isActive" />
+            <label for="isActive" style="font-size: 13px; cursor: pointer">
+              {{ form.isActive ? 'ใช้งาน' : 'ระงับการใช้งาน' }}
+            </label>
+          </div>
+        </div>
       </div>
       <template #footer>
-        <Button label="ยกเลิก" outlined @click="showDialog = false" />
-        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" @click="handleSave" />
+        <Button label="ยกเลิก" outlined @click="showDialog = false" :disabled="saving" />
+        <Button :label="editing ? 'บันทึก' : 'เพิ่ม'" class="btn-primary" :loading="saving" @click="handleSave" />
       </template>
     </Dialog>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
@@ -48,35 +67,58 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
+import ToggleSwitch from 'primevue/toggleswitch'
 
 const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
 
+const loading = ref(false)
 const showDialog = ref(false)
+const saving = ref(false)
 const editing = ref(null)
-const form = ref({ name: '' })
+const form = ref({ name: '', isActive: true })
+
+async function fetchBrands() {
+  loading.value = true
+  try {
+    await masterStore.fetchBrands()
+  } catch {
+    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchBrands)
 
 function openDialog(item = null) {
   editing.value = item
-  if (item) form.value = { name: item.name }
-  else form.value = { name: '' }
+  form.value = item ? { name: item.name, isActive: item.isActive } : { name: '', isActive: true }
   showDialog.value = true
 }
 
-function handleSave() {
+async function handleSave() {
   if (!form.value.name?.trim()) {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกชื่อแบรนด์', life: 3000 })
     return
   }
-  if (editing.value) {
-    masterStore.updateBrand(editing.value.id, form.value)
-    toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
-  } else {
-    masterStore.addBrand(form.value)
-    toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+  saving.value = true
+  try {
+    if (editing.value) {
+      await masterStore.updateBrand(editing.value.id, { name: form.value.name, isActive: form.value.isActive })
+      toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
+    } else {
+      await masterStore.addBrand({ name: form.value.name })
+      toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
+    }
+    showDialog.value = false
+  } catch (e) {
+    const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+    toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+  } finally {
+    saving.value = false
   }
-  showDialog.value = false
 }
 
 function confirmDelete(item) {
@@ -85,9 +127,14 @@ function confirmDelete(item) {
     header: 'ยืนยันการลบ',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
-    accept: () => {
-      masterStore.deleteBrand(item.id)
-      toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+    accept: async () => {
+      try {
+        await masterStore.deleteBrand(item.id)
+        toast.add({ severity: 'success', summary: 'ลบสำเร็จ', life: 3000 })
+      } catch (e) {
+        const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
     }
   })
 }
@@ -96,4 +143,7 @@ function confirmDelete(item) {
 <style scoped>
 .action-btns { display: flex; gap: 4px; }
 .dialog-form { display: flex; flex-direction: column; gap: 14px; }
+.active-row { display: flex; align-items: center; gap: 16px; }
+.active-toggle { display: flex; align-items: center; gap: 8px; }
+.empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }
 </style>
