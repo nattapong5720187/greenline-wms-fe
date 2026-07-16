@@ -8,7 +8,7 @@
           <div class="page-subtitle">{{ isEdit ? form.code : "กรอกข้อมูลสูตรและส่วนผสม BOM" }}</div>
         </div>
       </div>
-      <Button :label="isEdit ? 'บันทึก' : 'สร้างสูตร'" icon="pi pi-save" class="btn-primary" @click="save" />
+      <Button :label="isEdit ? 'บันทึก' : 'สร้างสูตร'" icon="pi pi-save" class="btn-primary" :loading="saving" @click="save" />
     </div>
 
     <!-- ข้อมูลทั่วไป -->
@@ -30,7 +30,7 @@
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label>ประเภทอาหาร</label>
+          <label>ประเภทอาหาร <span class="req">*</span></label>
           <Dropdown
             v-model="form.animalType"
             :options="animalTypeOptions"
@@ -38,11 +38,10 @@
             optionValue="value"
             placeholder="เลือกประเภทอาหาร"
             style="width: 100%"
-            showClear
           />
         </div>
         <div class="form-field">
-          <label>ประเภทบรรจุภัณฑ์</label>
+          <label>ประเภทบรรจุภัณฑ์ <span class="req">*</span></label>
           <Dropdown
             v-model="form.packagingType"
             :options="packagingTypeOptions"
@@ -50,11 +49,10 @@
             optionValue="value"
             placeholder="เลือกประเภทบรรจุภัณฑ์"
             style="width: 100%"
-            showClear
           />
         </div>
         <div class="form-field">
-          <label>ขนาดบรรจุภัณฑ์</label>
+          <label>ขนาดบรรจุภัณฑ์ <span class="req">*</span></label>
           <Dropdown
             v-model="form.packagingSize"
             :options="packagingSizeOptions"
@@ -62,11 +60,10 @@
             optionValue="value"
             placeholder="เลือกขนาด"
             style="width: 100%"
-            showClear
           />
         </div>
         <div class="form-field">
-          <label>ชื่อแบรนด์</label>
+          <label>ชื่อแบรนด์ <span class="req">*</span></label>
           <Dropdown
             v-model="form.brand"
             :options="brandOptions"
@@ -74,7 +71,6 @@
             optionValue="value"
             placeholder="เลือกแบรนด์"
             style="width: 100%"
-            showClear
           />
         </div>
       </div>
@@ -198,7 +194,7 @@
             <div style="flex: 2">
               <Dropdown
                 v-model="ing.productId"
-                :options="premixOptions"
+                :options="productOptions"
                 optionLabel="label"
                 optionValue="value"
                 filter
@@ -265,7 +261,7 @@
             <div style="flex: 2">
               <Dropdown
                 v-model="ing.productId"
-                :options="ingredientOptions"
+                :options="productOptions"
                 optionLabel="label"
                 optionValue="value"
                 filter
@@ -333,6 +329,7 @@ const productionStore = useProductionStore();
 const masterStore = useMasterStore();
 
 const isEdit = computed(() => !!route.params.id);
+const saving = ref(false);
 
 const form = ref({
   code: "",
@@ -343,6 +340,7 @@ const form = ref({
   packagingType: null,
   packagingSize: null,
   brand: null,
+  isConfidential: false,
   mixsizeIds: [],
 });
 
@@ -366,7 +364,23 @@ const brandOptions = computed(() =>
 
 // ── BOM per-mixsize state ──────────────────────────────────
 const activeMixsizeId = ref(null);
-const bomRows = ref({}); // { [mixsizeId]: { premix: [], ingredients: [] } }
+const bomRows = ref({}); // { [key]: { premix: [], ingredients: [] } }
+// Mix sizes loaded from a formula whose sizeKg has no match in the mock catalog.
+const extraMixSizes = ref([]); // [{ key, sizeKg, name }]
+
+function labelForSize(sizeKg) {
+  return `${Number(sizeKg).toLocaleString()} กก.`;
+}
+
+// Resolve the batch size (kg) + display name for a selected mixsize key,
+// whether it comes from the mock catalog or was loaded from the formula.
+function resolveMixMeta(key) {
+  const extra = extraMixSizes.value.find((e) => e.key === key);
+  if (extra) return { sizeKg: extra.sizeKg, name: extra.name || labelForSize(extra.sizeKg) };
+  const mx = masterStore.getMixsizeById(key);
+  if (mx) return { sizeKg: mx.size, name: labelForSize(mx.size) };
+  return { sizeKg: 0, name: String(key) };
+}
 
 function getBom(mixsizeId) {
   if (!bomRows.value[mixsizeId]) {
@@ -393,18 +407,14 @@ const mixselectRef = ref(null);
 const showAddMixsize = ref(false);
 const addForm = ref({ size: null, unitId: null });
 
-const mixsizeOptions = computed(() =>
-  masterStore.mixsizes.map((mx) => {
-    const unit = masterStore.getUnitById(mx.unitId);
-    return { label: `${mx.size.toLocaleString()} ${unit?.abbr || ""}`, value: mx.id };
-  }),
-);
+const mixsizeOptions = computed(() => {
+  const catalog = masterStore.mixsizes.map((mx) => ({ label: labelForSize(mx.size), value: mx.id }));
+  const extras = extraMixSizes.value.map((e) => ({ label: e.name || labelForSize(e.sizeKg), value: e.key }));
+  return [...catalog, ...extras];
+});
 
-function getMixsizeLabel(mixsizeId) {
-  const mx = masterStore.getMixsizeById(mixsizeId);
-  if (!mx) return mixsizeId;
-  const unit = masterStore.getUnitById(mx.unitId);
-  return `${mx.size.toLocaleString()} ${unit?.abbr || ""}`;
+function getMixsizeLabel(key) {
+  return resolveMixMeta(key).name;
 }
 
 const allSelected = computed(
@@ -435,102 +445,116 @@ function handleAddMixsize() {
 }
 
 // ── BOM options ────────────────────────────────────────────
-const premixOptions = computed(() =>
-  masterStore.products
-    .filter((p) => p.categoryId === "CAT11")
-    .map((p) => ({ label: `${p.code} — ${p.name}`, value: p.id })),
-);
-const ingredientOptions = computed(() =>
-  masterStore.products
-    .filter((p) => p.categoryId !== "CAT11")
-    .map((p) => ({ label: `${p.code} — ${p.name}`, value: p.id })),
+// Backend distinguishes premix vs. ingredient by `stepType`, not by product
+// category, so any product may appear in either section.
+const productOptions = computed(() =>
+  masterStore.products.map((p) => ({ label: `${p.code || p.sku} — ${p.name}`, value: p.id })),
 );
 const unitOptions = computed(() => masterStore.units);
 
-function addPremix(mixsizeId) {
-  getBom(mixsizeId).premix.push({ productId: null, qtyPerBatch: 0, unitId: "U01" });
+// Default new BOM rows to กิโลกรัม (kg) when it exists, else the first unit.
+const defaultUnitId = computed(() => {
+  const kg = masterStore.units.find((u) => (u.code || "").toLowerCase() === "kg");
+  return kg?.id ?? masterStore.units[0]?.id ?? null;
+});
+
+function addPremix(key) {
+  getBom(key).premix.push({ productId: null, qtyPerBatch: 0, unitId: defaultUnitId.value });
 }
-function removePremix(mixsizeId, idx) {
-  getBom(mixsizeId).premix.splice(idx, 1);
+function removePremix(key, idx) {
+  getBom(key).premix.splice(idx, 1);
 }
-function addIngredient(mixsizeId) {
-  getBom(mixsizeId).ingredients.push({ productId: null, qtyPerBatch: 0, unitId: "U01" });
+function addIngredient(key) {
+  getBom(key).ingredients.push({ productId: null, qtyPerBatch: 0, unitId: defaultUnitId.value });
 }
-function removeIngredient(mixsizeId, idx) {
-  getBom(mixsizeId).ingredients.splice(idx, 1);
+function removeIngredient(key, idx) {
+  getBom(key).ingredients.splice(idx, 1);
 }
 
 // ── Edit mode load ─────────────────────────────────────────
-function isPremix(productId) {
-  return masterStore.getProductById(productId)?.categoryId === "CAT11";
-}
-
-onMounted(() => {
+onMounted(async () => {
   if (!masterStore.units.length) masterStore.fetchUnits();
   if (!masterStore.products.length) masterStore.fetchProducts();
   if (!masterStore.packagingSizes.length) masterStore.fetchPackagingSizes();
   if (!masterStore.brands.length) masterStore.fetchBrands();
   if (isEdit.value) {
-    const f = productionStore.getFormulaById(route.params.id);
-    if (f) {
-      form.value = {
-        code: f.code,
-        name: f.name,
-        productCode: f.productCode || "",
-        active: f.active,
-        animalType: f.animalType || null,
-        packagingType: f.packagingType || null,
-        packagingSize: f.packagingSize || null,
-        brand: f.brand || null,
-        mixsizeIds: [...(f.mixsizeIds || [])],
-      };
-      bomRows.value = {};
-      if (f.bomByMixsize) {
-        Object.entries(f.bomByMixsize).forEach(([mixId, bom]) => {
-          bomRows.value[mixId] = {
-            premix: (bom.premix || []).map((i) => ({ ...i })),
-            ingredients: (bom.ingredients || []).map((i) => ({ ...i })),
+    try {
+      const f = await productionStore.fetchFormula(route.params.id);
+      if (f) {
+        form.value = {
+          code: f.code,
+          name: f.name,
+          productCode: f.productCode || "",
+          active: f.active,
+          animalType: f.animalType || null,
+          packagingType: f.packagingType || null,
+          packagingSize: f.packagingSize || null,
+          brand: f.brand || null,
+          isConfidential: f.isConfidential || false,
+          mixsizeIds: [],
+        };
+        bomRows.value = {};
+        extraMixSizes.value = [];
+        const ids = [];
+        (f.mixSizes || []).forEach((ms) => {
+          // Reuse a catalog batch size when the kg value matches; otherwise keep
+          // the formula's own mix size so it round-trips on save.
+          const match = masterStore.mixsizes.find((mx) => Number(mx.size) === Number(ms.sizeKg));
+          const key = match ? match.id : `api-${ms.backendId}`;
+          ids.push(key);
+          if (!match) extraMixSizes.value.push({ key, sizeKg: ms.sizeKg, name: ms.name });
+          bomRows.value[key] = {
+            premix: (ms.premix || []).map((i) => ({ ...i })),
+            ingredients: (ms.ingredients || []).map((i) => ({ ...i })),
           };
         });
-      } else if (f.ingredients) {
-        const firstMixId = (f.mixsizeIds || [])[0];
-        if (firstMixId) {
-          const ings = f.ingredients.map((i) => ({ ...i }));
-          bomRows.value[firstMixId] = {
-            premix: ings.filter((i) => isPremix(i.productId)),
-            ingredients: ings.filter((i) => !isPremix(i.productId)),
-          };
-        }
+        form.value.mixsizeIds = ids;
+        activeMixsizeId.value = ids[0] || null;
       }
-      activeMixsizeId.value = form.value.mixsizeIds[0] || null;
+    } catch (e) {
+      const msg = e.response?.data?.message || "โหลดข้อมูลสูตรล้มเหลว";
+      toast.add({ severity: "error", summary: Array.isArray(msg) ? msg.join(", ") : msg, life: 4000 });
     }
   }
 });
 
 // ── Save ───────────────────────────────────────────────────
-function save() {
-  if (!form.value.code || !form.value.name) {
-    toast.add({ severity: "warn", summary: "กรุณากรอกข้อมูลให้ครบ", detail: "รหัสและชื่อสูตรจำเป็น", life: 3000 });
+async function save() {
+  const missing = [];
+  if (!form.value.name) missing.push("ชื่อสูตร");
+  if (!form.value.animalType) missing.push("ประเภทอาหาร");
+  if (!form.value.packagingType) missing.push("ประเภทบรรจุภัณฑ์");
+  if (!form.value.packagingSize) missing.push("ขนาดบรรจุภัณฑ์");
+  if (!form.value.brand) missing.push("แบรนด์");
+  if (!form.value.mixsizeIds.length) missing.push("Mixsize");
+  if (missing.length) {
+    toast.add({ severity: "warn", summary: "กรุณากรอกข้อมูลให้ครบ", detail: missing.join(", "), life: 3500 });
     return;
   }
-  const bomByMixsize = {};
-  const allIngredients = [];
-  form.value.mixsizeIds.forEach((mixId) => {
-    const bom = getBom(mixId);
-    const premix = bom.premix.filter((i) => i.productId && i.qtyPerBatch > 0);
-    const ingredients = bom.ingredients.filter((i) => i.productId && i.qtyPerBatch > 0);
-    bomByMixsize[mixId] = { premix, ingredients };
-    allIngredients.push(...premix, ...ingredients);
+
+  const mixSizes = form.value.mixsizeIds.map((key) => {
+    const meta = resolveMixMeta(key);
+    const bom = getBom(key);
+    return { sizeKg: meta.sizeKg, name: meta.name, premix: bom.premix, ingredients: bom.ingredients };
   });
-  const payload = { ...form.value, bomByMixsize, ingredients: allIngredients };
-  if (isEdit.value) {
-    productionStore.updateFormula(route.params.id, payload);
-    toast.add({ severity: "success", summary: "บันทึกสำเร็จ", detail: form.value.name, life: 3000 });
-  } else {
-    productionStore.addFormula(payload);
-    toast.add({ severity: "success", summary: "สร้างสูตรสำเร็จ", detail: form.value.name, life: 3000 });
+  const payload = { ...form.value, mixSizes };
+
+  saving.value = true;
+  try {
+    if (isEdit.value) {
+      await productionStore.updateFormula(route.params.id, payload);
+      toast.add({ severity: "success", summary: "บันทึกสำเร็จ", detail: form.value.name, life: 3000 });
+    } else {
+      await productionStore.addFormula(payload);
+      toast.add({ severity: "success", summary: "สร้างสูตรสำเร็จ", detail: form.value.name, life: 3000 });
+    }
+    router.push("/production/formulas");
+  } catch (e) {
+    const msg = e.response?.data?.message || "เกิดข้อผิดพลาด";
+    toast.add({ severity: "error", summary: Array.isArray(msg) ? msg.join(", ") : msg, life: 4000 });
+  } finally {
+    saving.value = false;
   }
-  router.push("/production/formulas");
 }
 </script>
 

@@ -20,23 +20,19 @@
           placeholder="ทุกสถานะ" showClear style="width:150px;" />
       </div>
 
-      <DataTable :value="filtered" :paginator="true" :rows="15"
+      <DataTable :value="filtered" :paginator="true" :rows="15" :loading="loading"
         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
         currentPageReportTemplate="{first}–{last} จาก {totalRecords}" size="small" stripedRows>
+        <template #empty>
+          <div class="empty-state">ไม่มีข้อมูลสูตร</div>
+        </template>
         <Column field="code" header="รหัส" style="width:120px; font-family:monospace; font-size:12px;" sortable />
         <Column field="name" header="ชื่อสูตร" sortable />
-        <Column header="ส่วนผสม" style="width:100px; text-align:center;">
-          <template #body="{ data }">{{ data.ingredients.length }} รายการ</template>
+        <Column header="ประเภทอาหาร" style="width:120px;">
+          <template #body="{ data }">{{ animalLabel(data.animalType) }}</template>
         </Column>
-        <Column header="Mixsize" style="width:200px;">
-          <template #body="{ data }">
-            <span v-if="!data.mixsizeIds || data.mixsizeIds.length === 0" style="color:var(--gl-text-muted); font-size:12px;">-</span>
-            <div v-else style="display:flex; flex-wrap:wrap; gap:4px;">
-              <span v-for="id in data.mixsizeIds" :key="id" class="mixsize-chip">
-                {{ getMixsizeLabel(id) }}
-              </span>
-            </div>
-          </template>
+        <Column header="บรรจุภัณฑ์" style="width:140px;">
+          <template #body="{ data }">{{ packagingLabel(data.packagingType) }}</template>
         </Column>
         <Column header="สถานะ" style="width:100px;">
           <template #body="{ data }">
@@ -65,7 +61,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useProductionStore } from '@/stores/production'
-import { useMasterStore } from '@/stores/master'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
@@ -73,20 +68,23 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 
 const productionStore = useProductionStore()
-const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
 
-onMounted(() => {
-  if (!masterStore.units.length) masterStore.fetchUnits()
-})
+const loading = ref(false)
 
-function getMixsizeLabel(mixsizeId) {
-  const mx = masterStore.getMixsizeById(mixsizeId)
-  if (!mx) return mixsizeId
-  const unit = masterStore.getUnitById(mx.unitId)
-  return `${mx.size.toLocaleString()} ${unit?.abbr || ''}`
+async function fetchFormulas() {
+  loading.value = true
+  try {
+    await productionStore.fetchFormulas()
+  } catch {
+    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
+  } finally {
+    loading.value = false
+  }
 }
+
+onMounted(fetchFormulas)
 
 const search = ref('')
 const filterActive = ref(null)
@@ -99,11 +97,18 @@ const activeOptions = [
 const filtered = computed(() =>
   productionStore.formulas.filter(f => {
     const q = search.value.toLowerCase()
-    const matchText = !q || f.code.toLowerCase().includes(q) || f.name.toLowerCase().includes(q)
+    const matchText = !q || (f.code || '').toLowerCase().includes(q) || f.name.toLowerCase().includes(q)
     const matchActive = filterActive.value === null || f.active === filterActive.value
     return matchText && matchActive
   })
 )
+
+function animalLabel(t) {
+  return { dog: 'หมา', cat: 'แมว' }[t] || '—'
+}
+function packagingLabel(t) {
+  return { can: 'Can', spout_pouch: 'Spout pouch' }[t] || '—'
+}
 
 function confirmDelete(formula) {
   confirm.require({
@@ -111,9 +116,14 @@ function confirmDelete(formula) {
     header: 'ยืนยันการลบ',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
-    accept: () => {
-      productionStore.deleteFormula(formula.id)
-      toast.add({ severity: 'success', summary: 'ลบสำเร็จ', detail: formula.name, life: 3000 })
+    accept: async () => {
+      try {
+        await productionStore.deleteFormula(formula.id)
+        toast.add({ severity: 'success', summary: 'ลบสำเร็จ', detail: formula.name, life: 3000 })
+      } catch (e) {
+        const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
+        toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+      }
     }
   })
 }
@@ -123,6 +133,7 @@ function confirmDelete(formula) {
 .search-wrap { display: flex; align-items: center; position: relative; }
 .search-wrap i { position: absolute; left: 0.75rem; z-index: 1; color: var(--gl-text-muted); }
 .action-btns { display: flex; gap: 4px; }
+.empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }
 .mixsize-chip {
   background: #e0f2fe;
   color: #0369a1;

@@ -54,11 +54,15 @@
         :value="filtered"
         :paginator="true"
         :rows="15"
+        :loading="productionStore.ordersLoading"
         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
         currentPageReportTemplate="{first}–{last} จาก {totalRecords}"
         size="small"
         stripedRows
       >
+        <template #empty>
+          <div class="empty-state">ไม่มีข้อมูลใบสั่งผลิต</div>
+        </template>
         <Column field="docNo" header="เลขที่" style="width: 160px; font-family: monospace; font-size: 12px" sortable />
         <Column header="สูตร">
           <template #body="{ data }">
@@ -66,51 +70,35 @@
           </template>
         </Column>
         <Column header="ขนาด Mix" style="width: 110px; text-align: center">
-          <template #body="{ data }">{{ mixsizeLabel(data.mixsizeId) }}</template>
+          <template #body="{ data }">{{ mixNameFor(data.formulaId, data.mixsizeId) }}</template>
         </Column>
         <Column header="สถานะ" style="width: 140px">
           <template #body="{ data }">
-            <span :class="['po-badge', data.status]">{{ statusLabel(data.status) }}</span>
+            <span :class="['po-badge', statusClass(data.status)]">{{ statusLabel(data.status) }}</span>
           </template>
         </Column>
         <Column header="วันที่" style="width: 110px">
-          <template #body="{ data }">{{ formatDate(data.createdAt) }}</template>
+          <template #body="{ data }">{{ formatDate(data.planDate) }}</template>
         </Column>
         <Column header="จัดการ" style="width: 100px">
           <template #body="{ data }">
             <div class="action-btns">
               <Button
-                :icon="data.status === 'done' || data.status === 'cancelled' ? 'pi pi-eye' : 'pi pi-arrow-right'"
+                :icon="data.status === 'SUCCESS' || data.status === 'CANCELED' ? 'pi pi-eye' : 'pi pi-arrow-right'"
                 size="small"
                 text
                 rounded
-                :v-tooltip="data.status === 'done' ? 'ดูรายละเอียด' : 'ดำเนินการผลิต'"
+                :v-tooltip="data.status === 'SUCCESS' ? 'ดูรายละเอียด' : 'ดำเนินการผลิต'"
                 @click="router.push(`/production/process/${data.id}`)"
               />
               <Button
-                v-if="['draft', 'confirmed'].includes(data.status)"
+                v-if="data.status === 'ACCEPT'"
                 icon="pi pi-times"
                 size="small"
                 text
                 rounded
                 severity="danger"
                 @click="confirmCancel(data)"
-              />
-              <Button
-                v-if="data.status === 'done'"
-                icon="pi pi-print"
-                size="small"
-                text
-                rounded
-                :v-tooltip="'รายงานการผสมผลิตที่เครื่อง Homo Mixer'"
-              />
-              <Button
-                v-if="data.status === 'done'"
-                icon="pi pi-file-export"
-                size="small"
-                text
-                rounded
-                :v-tooltip="'รายงานผสมผลิตภัณฑ์กันที่เครื่อง Ribbon Mixer'"
               />
             </div>
           </template>
@@ -147,13 +135,30 @@
           />
         </div>
 
+        <div class="form-field">
+          <label>เครื่องจักร (Machine) <span class="req">*</span></label>
+          <Dropdown
+            v-model="createForm.machineId"
+            :options="machineOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="เลือกเครื่องจักร..."
+            style="width: 100%"
+          />
+        </div>
+
+        <div class="form-field">
+          <label>วันที่ผลิต (Plan date) <span class="req">*</span></label>
+          <InputText v-model="createForm.planDate" type="date" style="width: 100%" />
+        </div>
+
         <div v-if="createForm.formulaId && createForm.mixsizeId" class="total-preview">
           ส่วนผสมตามสูตร: <strong>{{ getIngredientCount(createForm.formulaId, createForm.mixsizeId) }} รายการ</strong>
         </div>
       </div>
       <template #footer>
-        <Button label="ยกเลิก" text @click="showCreate = false" />
-        <Button label="สร้างและยืนยัน" icon="pi pi-check" class="btn-primary" @click="doCreate" />
+        <Button label="ยกเลิก" text :disabled="saving" @click="showCreate = false" />
+        <Button label="สร้างและยืนยัน" icon="pi pi-check" class="btn-primary" :loading="saving" @click="doCreate" />
       </template>
     </Dialog>
   </div>
@@ -167,6 +172,7 @@ import Column from "primevue/column";
 import DataTable from "primevue/datatable";
 import Dialog from "primevue/dialog";
 import Dropdown from "primevue/dropdown";
+import InputText from "primevue/inputtext";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
 import { computed, onMounted, ref } from "vue";
@@ -178,28 +184,47 @@ const toast = useToast();
 const productionStore = useProductionStore();
 const masterStore = useMasterStore();
 
-onMounted(() => {
+onMounted(async () => {
+  if (!masterStore.machines.length) masterStore.fetchMachines().catch(() => {});
   if (!masterStore.units.length) masterStore.fetchUnits();
+  // Formula list (shallow — names only) drives the create dropdown.
+  await productionStore.fetchFormulas().catch(() => {});
+  try {
+    await productionStore.fetchOrders();
+  } catch {
+    toast.add({ severity: "error", summary: "โหลดข้อมูลใบสั่งผลิตล้มเหลว", life: 3000 });
+  }
+  // The list endpoints are shallow, so hydrate mix sizes for the formulas the
+  // orders reference (GET by id) so the "ขนาด Mix" column can show a name.
+  const ids = [...new Set(productionStore.orders.map((o) => o.formulaId))];
+  await Promise.all(
+    ids
+      .filter((id) => !productionStore.getFormulaById(id)?.mixSizes?.length)
+      .map((id) => productionStore.fetchFormula(id).catch(() => {})),
+  );
 });
 
 const filterStatus = ref(null);
 const filterFormula = ref(null);
 const showCreate = ref(false);
-const createForm = ref({ formulaId: null, mixsizeId: null });
+const saving = ref(false);
+const createForm = ref({ formulaId: null, mixsizeId: null, machineId: null, planDate: "" });
 
 const statusOptions = [
-  { label: "ยืนยันแล้ว", value: "confirmed" },
-  { label: "กำลังผสม", value: "mixing" },
-  { label: "รอรับเข้า Semi", value: "receiving" },
-  { label: "เสร็จสิ้น", value: "done" },
-  { label: "ยกเลิก", value: "cancelled" },
+  { label: "ยืนยันแล้ว", value: "ACCEPT" },
+  { label: "กำลังผสม", value: "MIXING" },
+  { label: "เสร็จสิ้น", value: "SUCCESS" },
+  { label: "ยกเลิก", value: "CANCELED" },
 ];
 
 const formulaOptions = computed(() =>
-  productionStore.formulas.map((f) => ({ label: `${f.code} — ${f.name}`, value: f.id })),
+  productionStore.formulas.map((f) => ({ label: `${f.code || "-"} — ${f.name}`, value: f.id })),
 );
 const activeFormulaOptions = computed(() =>
-  productionStore.formulas.filter((f) => f.active).map((f) => ({ label: `${f.code} — ${f.name}`, value: f.id })),
+  productionStore.formulas.filter((f) => f.active).map((f) => ({ label: `${f.code || "-"} — ${f.name}`, value: f.id })),
+);
+const machineOptions = computed(() =>
+  masterStore.machines.map((m) => ({ label: `${m.name}${m.code ? ` (${m.code})` : ""}`, value: m.id })),
 );
 const filtered = computed(() =>
   productionStore.orders.filter((o) => {
@@ -216,15 +241,18 @@ function getFormulaName(id) {
   return getFormula(id)?.name || "—";
 }
 
-function mixsizeLabel(id) {
-  const mx = masterStore.getMixsizeById(id);
-  if (!mx) return "—";
-  return `${mx.size.toLocaleString()} ${masterStore.getUnitById(mx.unitId)?.abbr || ""}`.trim();
+// Mix sizes are owned by the formula, so resolve the label from its mixSizes.
+function mixNameFor(formulaId, key) {
+  const ms = getFormula(formulaId)?.mixSizes?.find((m) => m.key === key);
+  if (ms) return ms.name;
+  const mx = masterStore.getMixsizeById(key);
+  if (mx) return `${mx.size.toLocaleString()} กก.`;
+  return "—";
 }
 
 const mixsizeOptions = computed(() => {
   const f = getFormula(createForm.value.formulaId);
-  return (f?.mixsizeIds || []).map((id) => ({ label: mixsizeLabel(id), value: id }));
+  return (f?.mixSizes || []).map((ms) => ({ label: ms.name, value: ms.key }));
 });
 
 function getIngredientCount(formulaId, mixsizeId) {
@@ -235,41 +263,74 @@ function getIngredientCount(formulaId, mixsizeId) {
 function statusLabel(s) {
   return (
     {
-      confirmed: "ยืนยันแล้ว",
-      mixing: "กำลังผสม",
-      receiving: "รอรับเข้า Semi",
-      done: "เสร็จสิ้น",
-      cancelled: "ยกเลิก",
+      ACCEPT: "ยืนยันแล้ว",
+      MIXING: "กำลังผสม",
+      SUCCESS: "เสร็จสิ้น",
+      CANCELED: "ยกเลิก",
     }[s] || s
   );
+}
+// Map the backend status to the existing badge CSS classes.
+function statusClass(s) {
+  return { ACCEPT: "confirmed", MIXING: "mixing", SUCCESS: "done", CANCELED: "cancelled" }[s] || "";
 }
 function formatDate(dt) {
   if (!dt) return "—";
   return new Date(dt).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
+function todayISO() {
+  const d = new Date();
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+}
+// Client-side prod number; the backend enforces uniqueness (409 if taken).
+function generateProdNo() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const stamp = `${String(d.getFullYear()).slice(2)}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+  const suffix = `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  return `PO-${stamp}-${suffix}`;
+}
+
 function openCreate() {
-  createForm.value = { formulaId: null, mixsizeId: null };
+  createForm.value = { formulaId: null, mixsizeId: null, machineId: null, planDate: todayISO() };
   showCreate.value = true;
 }
-function onFormulaChange() {
-  // default to the formula's first mix size, if any
+async function onFormulaChange() {
+  createForm.value.mixsizeId = null;
+  // The formula list is shallow; fetch the full formula so its mix sizes load.
+  const f = productionStore.getFormulaById(createForm.value.formulaId);
+  if (!f?.mixSizes?.length) {
+    await productionStore.fetchFormula(createForm.value.formulaId).catch(() => {});
+  }
   createForm.value.mixsizeId = mixsizeOptions.value[0]?.value ?? null;
 }
 
-function doCreate() {
-  if (!createForm.value.formulaId) {
-    toast.add({ severity: "warn", summary: "กรุณาเลือกสูตร", life: 3000 });
-    return;
+async function doCreate() {
+  const f = createForm.value;
+  if (!f.formulaId) return toast.add({ severity: "warn", summary: "กรุณาเลือกสูตร", life: 3000 });
+  if (!f.mixsizeId) return toast.add({ severity: "warn", summary: "กรุณาเลือกขนาด Mix", life: 3000 });
+  if (!f.machineId) return toast.add({ severity: "warn", summary: "กรุณาเลือกเครื่องจักร", life: 3000 });
+  if (!f.planDate) return toast.add({ severity: "warn", summary: "กรุณาเลือกวันที่ผลิต", life: 3000 });
+
+  saving.value = true;
+  try {
+    const order = await productionStore.createOrder({
+      formulaId: f.formulaId,
+      mixSizeId: Number(f.mixsizeId),
+      machineId: f.machineId,
+      prodNo: generateProdNo(),
+      planDate: f.planDate,
+    });
+    showCreate.value = false;
+    toast.add({ severity: "success", summary: "สร้างใบสั่งผลิตสำเร็จ", detail: order.docNo, life: 3000 });
+  } catch (e) {
+    const msg = e.response?.data?.message || "เกิดข้อผิดพลาด";
+    toast.add({ severity: "error", summary: Array.isArray(msg) ? msg.join(", ") : msg, life: 4000 });
+  } finally {
+    saving.value = false;
   }
-  if (!createForm.value.mixsizeId) {
-    toast.add({ severity: "warn", summary: "กรุณาเลือกขนาด Mix", life: 3000 });
-    return;
-  }
-  const order = productionStore.createOrder(createForm.value.formulaId, createForm.value.mixsizeId);
-  showCreate.value = false;
-  toast.add({ severity: "success", summary: "สร้างใบสั่งผลิตสำเร็จ", detail: order.docNo, life: 3000 });
-  router.push(`/production/process/${order.id}`);
 }
 
 function confirmCancel(order) {
@@ -278,9 +339,14 @@ function confirmCancel(order) {
     header: "ยืนยันการยกเลิก",
     icon: "pi pi-exclamation-triangle",
     acceptClass: "p-button-danger",
-    accept: () => {
-      productionStore.cancelOrder(order.id);
-      toast.add({ severity: "info", summary: "ยกเลิกแล้ว", detail: order.docNo, life: 3000 });
+    accept: async () => {
+      try {
+        await productionStore.cancelOrder(order.id);
+        toast.add({ severity: "info", summary: "ยกเลิกแล้ว", detail: order.docNo, life: 3000 });
+      } catch (e) {
+        const msg = e.response?.data?.message || "เกิดข้อผิดพลาด";
+        toast.add({ severity: "error", summary: Array.isArray(msg) ? msg.join(", ") : msg, life: 4000 });
+      }
     },
   });
 }
@@ -323,6 +389,12 @@ function confirmCancel(order) {
 .action-btns {
   display: flex;
   gap: 4px;
+}
+.empty-state {
+  text-align: center;
+  padding: 24px;
+  color: var(--gl-text-muted);
+  font-size: 14px;
 }
 .dialog-form {
   display: flex;

@@ -1,25 +1,154 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { FORMULAS, PRODUCTION_ORDERS, generatePONo } from '@/data/mockData'
+import { apiGetFormulas, apiGetFormula, apiCreateFormula, apiUpdateFormula, apiDeleteFormula } from '@/api/formulas'
+import { apiGetProductionOrders, apiCreateProductionOrder, apiDeleteProductionOrder } from '@/api/productionOrders'
 import { useStockStore } from './stock'
 import { useMasterStore } from './master'
 
-function makeId(prefix) { return `${prefix}${Date.now()}` }
+// Map a backend production order to the view-model the (still mock-shaped) views
+// read. `mixsizeId` is stringified to line up with a formula VM's mixSize `key`.
+function toOrderVM(o) {
+  return {
+    id: o.id,
+    docNo: o.prodNo,
+    formulaId: o.formulaId,
+    mixsizeId: String(o.mixSizeId),
+    mixSizeId: o.mixSizeId,
+    machineId: o.machineId,
+    status: o.status, // ACCEPT | MIXING | SUCCESS | CANCELED
+    planDate: o.planDate,
+    createdAt: o.createdAt,
+    createdBy: o.createdBy,
+    ingredients: o.ingredients || [],
+    mixRecords: o.mixRecords || [],
+  }
+}
+
+// ── Formula API ⇄ view-model translation ───────────────────
+// The backend owns mix sizes per-formula ({ sizeKg, name, ingredients }) and
+// distinguishes premix vs. ingredient via `stepType`. The rest of the app reads
+// the older mock-shaped fields (code/active/animalType/bomByMixsize/…), so we
+// map between the two here — mirroring `normalizeProduct` in the master store.
+const FOOD_TYPE_IN = { DOG: 'dog', CAT: 'cat' }
+const FOOD_TYPE_OUT = { dog: 'DOG', cat: 'CAT' }
+const PACK_TYPE_IN = { CAN: 'can', SPOUT_POUCH: 'spout_pouch' }
+const PACK_TYPE_OUT = { can: 'CAN', spout_pouch: 'SPOUT_POUCH' }
+
+function mapIngredientIn(i) {
+  return { productId: i.productId, unitId: i.unitId, qtyPerBatch: i.quantity }
+}
+
+function toFormulaVM(f) {
+  const mixSizes = (f.mixSizes || []).map(ms => {
+    const sorted = [...(ms.ingredients || [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    return {
+      backendId: ms.id,
+      key: String(ms.id),
+      sizeKg: ms.sizeKg,
+      name: ms.name,
+      premix: sorted.filter(i => i.stepType === 'PREMIX').map(mapIngredientIn),
+      ingredients: sorted.filter(i => i.stepType !== 'PREMIX').map(mapIngredientIn),
+    }
+  })
+  const bomByMixsize = {}
+  const allIngredients = []
+  mixSizes.forEach(ms => {
+    bomByMixsize[ms.key] = { premix: ms.premix, ingredients: ms.ingredients }
+    allIngredients.push(...ms.premix, ...ms.ingredients)
+  })
+  return {
+    id: f.id,
+    code: f.formulaCode || '',
+    name: f.name,
+    productCode: f.productCode || '',
+    active: f.status !== false,
+    animalType: FOOD_TYPE_IN[f.foodType] || null,
+    packagingType: PACK_TYPE_IN[f.packagingType] || null,
+    packagingSize: f.packageSizeId ?? null,
+    brand: f.brandId ?? null,
+    isConfidential: !!f.isConfidential,
+    version: f.version ?? 1,
+    mixSizes,
+    mixsizeIds: mixSizes.map(ms => ms.key),
+    bomByMixsize,
+    ingredients: allIngredients,
+    createdAt: f.createdAt,
+    updatedAt: f.updatedAt,
+  }
+}
+
+function toFormulaPayload(vm) {
+  const mixSizes = (vm.mixSizes || []).map(ms => {
+    let order = 0
+    const ingredients = []
+    ;(ms.premix || []).forEach(i => {
+      if (i.productId && i.qtyPerBatch > 0) {
+        ingredients.push({ productId: i.productId, unitId: Number(i.unitId), quantity: i.qtyPerBatch, stepType: 'PREMIX', sortOrder: order++ })
+      }
+    })
+    ;(ms.ingredients || []).forEach(i => {
+      if (i.productId && i.qtyPerBatch > 0) {
+        ingredients.push({ productId: i.productId, unitId: Number(i.unitId), quantity: i.qtyPerBatch, stepType: 'INGREDIENT', sortOrder: order++ })
+      }
+    })
+    return { sizeKg: Number(ms.sizeKg), name: ms.name, ingredients }
+  })
+  const payload = {
+    brandId: Number(vm.brand),
+    packageSizeId: Number(vm.packagingSize),
+    name: vm.name,
+    foodType: FOOD_TYPE_OUT[vm.animalType],
+    packagingType: PACK_TYPE_OUT[vm.packagingType],
+    status: vm.active !== false,
+    isConfidential: !!vm.isConfidential,
+    mixSizes,
+  }
+  if (vm.code) payload.formulaCode = vm.code
+  if (vm.productCode) payload.productCode = vm.productCode
+  return payload
+}
 
 export const useProductionStore = defineStore('production', () => {
-  const formulas = ref([...FORMULAS])
-  const orders = ref([...PRODUCTION_ORDERS])
+  const formulas = ref([])
+  const formulasLoading = ref(false)
+  const orders = ref([])
+  const ordersLoading = ref(false)
+  const ordersMeta = ref({ page: 1, limit: 100, total: 0, totalPages: 0 })
 
   function getFormulaById(id) { return formulas.value.find(f => f.id === id) }
 
-  function addFormula(data) {
-    formulas.value.unshift({ ...data, id: makeId('FML'), createdAt: new Date().toISOString() })
+  async function fetchFormulas() {
+    formulasLoading.value = true
+    try {
+      const { data } = await apiGetFormulas()
+      formulas.value = data.map(toFormulaVM)
+    } finally {
+      formulasLoading.value = false
+    }
   }
-  function updateFormula(id, data) {
+  async function fetchFormula(id) {
+    const { data } = await apiGetFormula(id)
+    const vm = toFormulaVM(data)
     const i = formulas.value.findIndex(f => f.id === id)
-    if (i !== -1) formulas.value[i] = { ...formulas.value[i], ...data }
+    if (i !== -1) formulas.value[i] = vm
+    else formulas.value.unshift(vm)
+    return vm
   }
-  function deleteFormula(id) {
+  async function addFormula(data) {
+    const { data: created } = await apiCreateFormula(toFormulaPayload(data))
+    const vm = toFormulaVM(created)
+    formulas.value.unshift(vm)
+    return vm
+  }
+  async function updateFormula(id, data) {
+    const { data: updated } = await apiUpdateFormula(id, toFormulaPayload(data))
+    const vm = toFormulaVM(updated)
+    const i = formulas.value.findIndex(f => f.id === id)
+    if (i !== -1) formulas.value[i] = vm
+    return vm
+  }
+  async function deleteFormula(id) {
+    await apiDeleteFormula(id)
     formulas.value = formulas.value.filter(f => f.id !== id)
   }
 
@@ -69,30 +198,28 @@ export const useProductionStore = defineStore('production', () => {
     })
   }
 
-  function createOrder(formulaId, mixsizeId) {
-    const ingredients = matchLotsForMixsize(formulaId, mixsizeId)
-    const order = {
-      id: makeId('PO'),
-      docNo: generatePONo(),
-      formulaId,
-      mixsizeId,
-      plannedBatches: 1,
-      status: 'confirmed',
-      ingredients,
-      mixData: null,
-      semiLot: null,
-      fgLot: null,
-      actualOutput: null,
-      createdAt: new Date().toISOString(),
-      confirmedAt: new Date().toISOString(),
-      mixedAt: null,
-      packedAt: null,
-      receivedAt: null,
-      completedAt: null,
-      createdBy: 'USR001',
+  // ---- Production orders (API) ----
+  async function fetchOrders(params = {}) {
+    ordersLoading.value = true
+    try {
+      const { data } = await apiGetProductionOrders({ page: 1, limit: 100, ...params })
+      orders.value = (data.data || []).map(toOrderVM)
+      ordersMeta.value = {
+        page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
+      }
+    } finally {
+      ordersLoading.value = false
     }
-    orders.value.unshift(order)
-    return order
+  }
+
+  function getOrderById(id) { return orders.value.find(o => o.id === id) }
+
+  // payload: { formulaId, mixSizeId, machineId, prodNo, planDate }
+  async function createOrder(payload) {
+    const { data } = await apiCreateProductionOrder(payload)
+    const vm = toOrderVM(data)
+    orders.value.unshift(vm)
+    return vm
   }
 
   // Re-match lots after the user edits / adds / removes raw materials in step 1.
@@ -183,23 +310,25 @@ export const useProductionStore = defineStore('production', () => {
     order.completedAt = new Date().toISOString()
   }
 
-  function cancelOrder(orderId) {
+  // Cancel = backend soft-delete; only orders still in ACCEPT can be cancelled.
+  async function cancelOrder(orderId) {
+    await apiDeleteProductionOrder(orderId)
     const order = orders.value.find(o => o.id === orderId)
-    if (order && ['draft', 'confirmed'].includes(order.status)) order.status = 'cancelled'
+    if (order) order.status = 'CANCELED'
   }
 
   const counts = computed(() => ({
-    all: orders.value.filter(o => o.status !== 'cancelled').length,
-    confirmed: orders.value.filter(o => o.status === 'confirmed').length,
-    inProgress: orders.value.filter(o => ['mixing', 'receiving'].includes(o.status)).length,
-    done: orders.value.filter(o => o.status === 'done').length,
+    all: orders.value.filter(o => o.status !== 'CANCELED').length,
+    confirmed: orders.value.filter(o => o.status === 'ACCEPT').length,
+    inProgress: orders.value.filter(o => o.status === 'MIXING').length,
+    done: orders.value.filter(o => o.status === 'SUCCESS').length,
   }))
 
   return {
-    formulas, orders, counts,
-    getFormulaById, addFormula, updateFormula, deleteFormula,
-    createOrder, setIngredients, startProcessing, completeMixing,
-    receiveSemi, cancelOrder,
+    formulas, formulasLoading, orders, ordersLoading, ordersMeta, counts,
+    getFormulaById, fetchFormulas, fetchFormula, addFormula, updateFormula, deleteFormula,
+    fetchOrders, getOrderById, createOrder, cancelOrder,
+    setIngredients, startProcessing, completeMixing, receiveSemi,
     matchLots, matchLotsForMixsize,
   }
 })
