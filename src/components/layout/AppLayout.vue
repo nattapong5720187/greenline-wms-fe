@@ -5,9 +5,7 @@
       <AppHeader />
       <main class="page-body">
         <RouterView v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" :key="route.fullPath" />
-          </transition>
+          <component :is="Component" :key="route.fullPath" />
         </RouterView>
       </main>
     </div>

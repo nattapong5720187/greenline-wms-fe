@@ -196,12 +196,13 @@ onMounted(async () => {
   }
   // The list endpoints are shallow, so hydrate mix sizes for the formulas the
   // orders reference (GET by id) so the "ขนาด Mix" column can show a name.
-  const ids = [...new Set(productionStore.orders.map((o) => o.formulaId))];
-  await Promise.all(
-    ids
-      .filter((id) => !productionStore.getFormulaById(id)?.mixSizes?.length)
-      .map((id) => productionStore.fetchFormula(id).catch(() => {})),
+  // Only hydrate formulas that still exist (are in the list) — skip deleted ones
+  // to avoid 404s.
+  const knownIds = new Set(productionStore.formulas.map((f) => f.id));
+  const ids = [...new Set(productionStore.orders.map((o) => o.formulaId))].filter(
+    (id) => knownIds.has(id) && !productionStore.getFormulaById(id)?.mixSizes?.length,
   );
+  await Promise.all(ids.map((id) => productionStore.fetchFormula(id).catch(() => {})));
 });
 
 const filterStatus = ref(null);

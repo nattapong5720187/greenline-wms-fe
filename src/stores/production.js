@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiGetFormulas, apiGetFormula, apiCreateFormula, apiUpdateFormula, apiDeleteFormula } from '@/api/formulas'
-import { apiGetProductionOrders, apiCreateProductionOrder, apiDeleteProductionOrder } from '@/api/productionOrders'
+import { apiGetProductionOrders, apiGetProductionOrder, apiCreateProductionOrder, apiUpdateProductionOrder, apiDeleteProductionOrder } from '@/api/productionOrders'
 import { useStockStore } from './stock'
 import { useMasterStore } from './master'
 
@@ -212,13 +212,32 @@ export const useProductionStore = defineStore('production', () => {
     }
   }
 
-  function getOrderById(id) { return orders.value.find(o => o.id === id) }
+  function getOrderById(id) { return orders.value.find(o => String(o.id) === String(id)) }
+
+  async function fetchOrder(id) {
+    const { data } = await apiGetProductionOrder(id)
+    const vm = toOrderVM(data)
+    const i = orders.value.findIndex(o => o.id === vm.id)
+    if (i !== -1) orders.value[i] = vm
+    else orders.value.unshift(vm)
+    return vm
+  }
 
   // payload: { formulaId, mixSizeId, machineId, prodNo, planDate }
   async function createOrder(payload) {
     const { data } = await apiCreateProductionOrder(payload)
     const vm = toOrderVM(data)
     orders.value.unshift(vm)
+    return vm
+  }
+
+  // payload: { status?, mixRecords?, ... } — see UpdateProductionOrderDto
+  async function updateOrder(id, payload) {
+    const { data } = await apiUpdateProductionOrder(id, payload)
+    const vm = toOrderVM(data)
+    const i = orders.value.findIndex(o => o.id === vm.id)
+    if (i !== -1) orders.value[i] = vm
+    else orders.value.unshift(vm)
     return vm
   }
 
@@ -327,7 +346,7 @@ export const useProductionStore = defineStore('production', () => {
   return {
     formulas, formulasLoading, orders, ordersLoading, ordersMeta, counts,
     getFormulaById, fetchFormulas, fetchFormula, addFormula, updateFormula, deleteFormula,
-    fetchOrders, getOrderById, createOrder, cancelOrder,
+    fetchOrders, fetchOrder, getOrderById, createOrder, updateOrder, cancelOrder,
     setIngredients, startProcessing, completeMixing, receiveSemi,
     matchLots, matchLotsForMixsize,
   }
