@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: greenline-wms-fe-dev
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      # Set the real backend URL in the Render dashboard (https, no trailing slash).
+      # Vite inlines it at build time, so a change here needs a redeploy.
+      - key: VITE_API_URL
+        sync: false
+    # Router uses hash history, so this is only a safety net for direct hits
+    # on non-root paths (and for a future switch to history mode).
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
