@@ -39,6 +39,10 @@
           <label class="field-label">ชื่อแบรนด์ <span class="req">*</span></label>
           <InputText v-model="form.name" style="width:100%;" placeholder="เช่น Kandy" />
         </div>
+        <div>
+          <label class="field-label">ชื่อลูกค้า/บริษัท</label>
+          <InputText v-model="form.customer" style="width:100%;" placeholder="เช่น บริษัท เอซีเอ็มอี จำกัด" />
+        </div>
         <div v-if="editing" class="active-row">
           <label class="field-label" style="margin: 0">สถานะ</label>
           <div class="active-toggle">
@@ -77,7 +81,7 @@ const loading = ref(false)
 const showDialog = ref(false)
 const saving = ref(false)
 const editing = ref(null)
-const form = ref({ name: '', isActive: true })
+const form = ref({ name: '', customer: '', isActive: true })
 
 async function fetchBrands() {
   loading.value = true
@@ -94,7 +98,9 @@ onMounted(fetchBrands)
 
 function openDialog(item = null) {
   editing.value = item
-  form.value = item ? { name: item.name, isActive: item.isActive } : { name: '', isActive: true }
+  form.value = item
+    ? { name: item.name, customer: item.customer || '', isActive: item.isActive }
+    : { name: '', customer: '', isActive: true }
   showDialog.value = true
 }
 
@@ -106,10 +112,14 @@ async function handleSave() {
   saving.value = true
   try {
     if (editing.value) {
-      await masterStore.updateBrand(editing.value.id, { name: form.value.name, isActive: form.value.isActive })
+      await masterStore.updateBrand(editing.value.id, {
+        name: form.value.name,
+        customer: form.value.customer || undefined,
+        isActive: form.value.isActive,
+      })
       toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
     } else {
-      await masterStore.addBrand({ name: form.value.name })
+      await masterStore.addBrand({ name: form.value.name, customer: form.value.customer || undefined })
       toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
     }
     showDialog.value = false

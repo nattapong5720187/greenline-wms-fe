@@ -65,6 +65,22 @@
             placeholder="เลือกประเภท"
           />
         </div>
+        <div>
+          <label class="field-label">ชื่อผู้ผลิต/จำหน่าย</label>
+          <InputText v-model="form.manufacturer" class="w-full" placeholder="เช่น Silverson" />
+        </div>
+        <div>
+          <label class="field-label">รุ่น/Serial No.</label>
+          <InputText v-model="form.serialNo" class="w-full" placeholder="เช่น L4RT-A" />
+        </div>
+        <div>
+          <label class="field-label">วันที่ติดตั้ง</label>
+          <Calendar v-model="form.installedAt" dateFormat="dd/mm/yy" placeholder="วด/ดือ/ปี" class="w-full" showIcon />
+        </div>
+        <div>
+          <label class="field-label">พื้นที่ติดตั้ง</label>
+          <InputText v-model="form.installedArea" class="w-full" placeholder="เช่น อาคาร A ไลน์ 2" />
+        </div>
         <div v-if="editing" class="active-row">
           <label class="field-label" style="margin: 0">สถานะ</label>
           <div class="active-toggle">
@@ -86,6 +102,7 @@
 <script setup>
 import { useMasterStore } from "@/stores/master";
 import Button from "primevue/button";
+import Calendar from "primevue/calendar";
 import Column from "primevue/column";
 import DataTable from "primevue/datatable";
 import Dialog from "primevue/dialog";
@@ -115,7 +132,32 @@ const editing = ref(null);
 const form = ref(defaultForm());
 
 function defaultForm() {
-  return { code: "", name: "", type: null, isActive: true };
+  return {
+    code: "",
+    name: "",
+    type: null,
+    manufacturer: "",
+    serialNo: "",
+    installedAt: null,
+    installedArea: "",
+    isActive: true,
+  };
+}
+
+// Backend `installedAt` is a 'YYYY-MM-DD' string; Calendar works with a Date object.
+function toDateStr(d) {
+  if (!d) return undefined;
+  const dt = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(dt.getTime())) return undefined;
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const day = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function parseDate(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
 }
 
 async function fetchMachines() {
@@ -133,7 +175,18 @@ onMounted(fetchMachines);
 
 function openDialog(item = null) {
   editing.value = item;
-  form.value = item ? { code: item.code, name: item.name, type: item.type, isActive: item.isActive } : defaultForm();
+  form.value = item
+    ? {
+        code: item.code,
+        name: item.name,
+        type: item.type,
+        manufacturer: item.manufacturer || "",
+        serialNo: item.serialNo || "",
+        installedAt: parseDate(item.installedAt),
+        installedArea: item.installedArea || "",
+        isActive: item.isActive,
+      }
+    : defaultForm();
   showDialog.value = true;
 }
 
@@ -143,21 +196,21 @@ async function handleSave() {
     return;
   }
   saving.value = true;
+  const payload = {
+    code: form.value.code,
+    name: form.value.name,
+    type: form.value.type,
+    manufacturer: form.value.manufacturer || undefined,
+    serialNo: form.value.serialNo || undefined,
+    installedAt: toDateStr(form.value.installedAt),
+    installedArea: form.value.installedArea || undefined,
+  };
   try {
     if (editing.value) {
-      await masterStore.updateMachine(editing.value.id, {
-        code: form.value.code,
-        name: form.value.name,
-        type: form.value.type,
-        isActive: form.value.isActive,
-      });
+      await masterStore.updateMachine(editing.value.id, { ...payload, isActive: form.value.isActive });
       toast.add({ severity: "success", summary: "แก้ไขสำเร็จ", life: 3000 });
     } else {
-      await masterStore.addMachine({
-        code: form.value.code,
-        name: form.value.name,
-        type: form.value.type,
-      });
+      await masterStore.addMachine(payload);
       toast.add({ severity: "success", summary: "เพิ่มสำเร็จ", life: 3000 });
     }
     showDialog.value = false;

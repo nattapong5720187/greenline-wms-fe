@@ -334,7 +334,7 @@ function nowHHMM() {
 
 // ---- mix sheets (restored original design) ----
 const mixSub = ref("sauce");
-const sauce = reactive({ name: "", code: "", date: "", mixSize: 50, machineId: null, columns: [], rows: [] });
+const sauce = reactive({ name: "", code: "", date: "", mixSize: 0, machineId: null, columns: [], rows: [] });
 const meat = reactive({ name: "", code: "", date: "", mixSize: 0, machineId: null, columns: [], rows: [] });
 
 function makeSauceRow() {
@@ -355,16 +355,15 @@ function initMix() {
   const premixIngs = ings.filter((i) => i.stepType === "PREMIX");
   const meatIngs = ings.filter((i) => i.stepType !== "PREMIX");
 
-  const baseWater = 50;
-  const sCols = [{ key: "base", label: "น้ำ soft", target: baseWater, unit: "kg", ingredientId: null }];
-  premixIngs.forEach((i, idx) =>
-    sCols.push({ key: "p" + idx, label: i.materialName, target: Number(i.quantity), unit: i.unit, ingredientId: i.id }),
-  );
+  // Columns are derived purely from the PREMIX ingredients (one column each).
+  const sCols = premixIngs.map((i, idx) => ({
+    key: "p" + idx, label: i.materialName, target: Number(i.quantity), unit: i.unit, ingredientId: i.id,
+  }));
 
   sauce.name = formula.value?.name ?? "";
   sauce.code = formula.value?.code ?? "";
   sauce.date = todayStr();
-  sauce.mixSize = baseWater;
+  sauce.mixSize = premixIngs.reduce((sum, i) => sum + Number(i.quantity), 0);
   sauce.machineId = homoMixerOptions.value[0]?.value ?? order.value.machineId ?? null;
   sauce.columns = sCols;
   sauce.rows = [makeSauceRow()];

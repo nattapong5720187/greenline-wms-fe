@@ -12,13 +12,13 @@
     <div v-else-if="!masterStore.warehouses.length" class="empty-state">ไม่มีข้อมูลคลังสินค้า</div>
     <div v-else class="wh-grid">
       <div class="wh-detail-card" v-for="wh in masterStore.warehouses" :key="wh.id">
-        <div class="wdc-header" :style="{ background: whTypeColor(wh.type) }">
+        <div class="wdc-header" :style="{ background: whTypeColor(warehouseType(wh)) }">
           <i class="pi pi-building wdc-icon" />
           <div>
             <div class="wdc-name">{{ wh.name }}</div>
             <div class="wdc-code">{{ wh.code }}</div>
           </div>
-          <span class="wdc-type-badge">{{ whTypeLabel(wh.type) }}</span>
+          <span class="wdc-type-badge">{{ whTypeLabel(warehouseType(wh)) }}</span>
         </div>
         <div class="wdc-body">
           <div class="wdc-stats">
@@ -101,11 +101,23 @@ function defaultForm() {
   return { code: "", name: "", type: "main" };
 }
 
+// ประเภทคลัง — the backend stores this as three boolean flags
+// (isMain / isIngredients / isPremixes); here it is a single mutually-exclusive
+// selection keyed by `type`.
 const typeOptions = [
   { label: "คลังหลัก", value: "main" },
-  { label: "ห้องเย็น (ภายใน)", value: "cold" },
-  { label: "ห้องเย็น (ภายนอก)", value: "cold_external" },
+  { label: "คลังวัตถุดิบ", value: "ingredients" },
+  { label: "คลัง Premixs", value: "premixes" },
 ];
+
+// Map a warehouse record's boolean flags back to the single `type` key used by
+// the form/display (falls back to the stored `type` string for legacy rows).
+function warehouseType(wh) {
+  if (wh.isMain) return "main";
+  if (wh.isIngredients) return "ingredients";
+  if (wh.isPremixes) return "premixes";
+  return wh.type;
+}
 
 function whTypeLabel(t) {
   return typeOptions.find((o) => o.value === t)?.label || t;
@@ -114,8 +126,8 @@ function whTypeColor(t) {
   return (
     {
       main: "linear-gradient(135deg, #0D2461, #1a3a7c)",
-      cold: "linear-gradient(135deg, #0369a1, #0284c7)",
-      cold_external: "linear-gradient(135deg, #1d4ed8, #3b82f6)",
+      ingredients: "linear-gradient(135deg, #0369a1, #0284c7)",
+      premixes: "linear-gradient(135deg, #1d4ed8, #3b82f6)",
     }[t] || "#0D2461"
   );
 }
@@ -145,7 +157,7 @@ onMounted(fetchWarehouses);
 
 function openDialog(item = null) {
   editing.value = item;
-  form.value = item ? { code: item.code, name: item.name, type: item.type } : defaultForm();
+  form.value = item ? { code: item.code, name: item.name, type: warehouseType(item) } : defaultForm();
   showDialog.value = true;
 }
 
@@ -155,12 +167,22 @@ async function handleSave() {
     return;
   }
   saving.value = true;
+  // Backend requires `type` (string) plus the three boolean flags. Derive the
+  // flags from the single selected category.
+  const payload = {
+    code: form.value.code,
+    name: form.value.name,
+    type: form.value.type,
+    isMain: form.value.type === "main",
+    isIngredients: form.value.type === "ingredients",
+    isPremixes: form.value.type === "premixes",
+  };
   try {
     if (editing.value) {
-      await masterStore.updateWarehouse(editing.value.id, { ...form.value });
+      await masterStore.updateWarehouse(editing.value.id, payload);
       toast.add({ severity: "success", summary: "แก้ไขสำเร็จ", life: 3000 });
     } else {
-      await masterStore.addWarehouse({ ...form.value });
+      await masterStore.addWarehouse(payload);
       toast.add({ severity: "success", summary: "เพิ่มสำเร็จ", life: 3000 });
     }
     showDialog.value = false;

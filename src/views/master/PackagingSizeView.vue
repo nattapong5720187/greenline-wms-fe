@@ -61,6 +61,10 @@
           <label class="field-label">ป้ายแสดง <span class="req">*</span></label>
           <InputText v-model="form.label" style="width:100%;" placeholder="เช่น 70g bag" />
         </div>
+        <div>
+          <label class="field-label">ประเภทบรรจุภัณฑ์</label>
+          <InputText v-model="form.packagingType" style="width:100%;" placeholder="เช่น ถุง" />
+        </div>
         <div v-if="editing" class="active-row">
           <label class="field-label" style="margin: 0">สถานะ</label>
           <div class="active-toggle">
@@ -103,7 +107,7 @@ const editing = ref(null)
 const form = ref(defaultForm())
 
 function defaultForm() {
-  return { sizeValue: null, unit: 'g', label: '', isActive: true }
+  return { sizeValue: null, unit: 'g', label: '', packagingType: '', isActive: true }
 }
 
 async function fetchPackagingSizes() {
@@ -122,7 +126,13 @@ onMounted(fetchPackagingSizes)
 function openDialog(item = null) {
   editing.value = item
   form.value = item
-    ? { sizeValue: item.sizeValue, unit: item.unit, label: item.label, isActive: item.isActive }
+    ? {
+        sizeValue: item.sizeValue,
+        unit: item.unit,
+        label: item.label,
+        packagingType: item.packagingType || '',
+        isActive: item.isActive,
+      }
     : defaultForm()
   showDialog.value = true
 }
@@ -139,6 +149,7 @@ async function handleSave() {
         sizeValue: form.value.sizeValue,
         unit: form.value.unit,
         label: form.value.label,
+        packagingType: form.value.packagingType || undefined,
         isActive: form.value.isActive,
       })
       toast.add({ severity: 'success', summary: 'แก้ไขสำเร็จ', life: 3000 })
@@ -147,6 +158,7 @@ async function handleSave() {
         sizeValue: form.value.sizeValue,
         unit: form.value.unit,
         label: form.value.label,
+        packagingType: form.value.packagingType || undefined,
       })
       toast.add({ severity: 'success', summary: 'เพิ่มสำเร็จ', life: 3000 })
     }

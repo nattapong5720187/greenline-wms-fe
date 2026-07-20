@@ -64,6 +64,14 @@
             showClear
           />
         </div>
+        <div>
+          <label class="field-label">ขนาด</label>
+          <InputText v-model="form.size" class="w-full" placeholder="เช่น 1.5 kg" />
+        </div>
+        <div>
+          <label class="field-label">ประเภทบรรจุภัณฑ์</label>
+          <InputText v-model="form.packageType" class="w-full" placeholder="เช่น ถุง" />
+        </div>
       </div>
       <template #footer>
         <Button label="ยกเลิก" outlined @click="showDialog = false" :disabled="saving" />
@@ -96,7 +104,7 @@ const editing = ref(null);
 const form = ref(defaultForm());
 
 function defaultForm() {
-  return { code: "", name: "", parentId: null };
+  return { code: "", name: "", parentId: null, size: "", packageType: "" };
 }
 
 const parentOptions = computed(() => masterStore.categories.filter((c) => c.id !== editing.value?.id));
@@ -123,7 +131,15 @@ onMounted(() => {
 
 function openDialog(item = null) {
   editing.value = item;
-  form.value = item ? { code: item.code, name: item.name, parentId: item.parentId } : defaultForm();
+  form.value = item
+    ? {
+        code: item.code,
+        name: item.name,
+        parentId: item.parentId,
+        size: item.size || "",
+        packageType: item.packageType || "",
+      }
+    : defaultForm();
   showDialog.value = true;
 }
 

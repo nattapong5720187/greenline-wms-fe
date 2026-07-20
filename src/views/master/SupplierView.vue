@@ -48,6 +48,22 @@
           <label class="field-label">ชื่อบริษัท <span class="req">*</span></label>
           <InputText v-model="form.name" class="w-full" placeholder="ชื่อบริษัท/ผู้จำหน่าย" />
         </div>
+        <div>
+          <label class="field-label">ชื่อผู้ผลิต (Manufacturer Name)</label>
+          <InputText v-model="form.manufacturerName" class="w-full" placeholder="ชื่อผู้ผลิต" />
+        </div>
+        <div>
+          <label class="field-label">ที่อยู่ (Address)</label>
+          <InputText v-model="form.address" class="w-full" placeholder="ที่อยู่" />
+        </div>
+        <div>
+          <label class="field-label">เบอร์โทร (Telephone No)</label>
+          <InputText v-model="form.telephone" class="w-full" placeholder="เช่น 02-123-4567" />
+        </div>
+        <div>
+          <label class="field-label">อีเมล (E-mail)</label>
+          <InputText v-model="form.email" class="w-full" placeholder="เช่น contact@acme.com" />
+        </div>
       </div>
       <template #footer>
         <Button label="ยกเลิก" outlined @click="showDialog = false" :disabled="saving" />
@@ -77,7 +93,11 @@ const showDialog = ref(false);
 const saving = ref(false);
 const editing = ref(null);
 const search = ref("");
-const form = ref({ code: "", name: "" });
+const form = ref(defaultForm());
+
+function defaultForm() {
+  return { code: "", name: "", manufacturerName: "", address: "", telephone: "", email: "" };
+}
 
 const filtered = computed(() =>
   masterStore.suppliers.filter((s) => {
@@ -101,7 +121,16 @@ onMounted(fetchSuppliers);
 
 function openDialog(item = null) {
   editing.value = item;
-  form.value = item ? { code: item.code, name: item.name } : { code: "", name: "" };
+  form.value = item
+    ? {
+        code: item.code,
+        name: item.name,
+        manufacturerName: item.manufacturerName || "",
+        address: item.address || "",
+        telephone: item.telephone || "",
+        email: item.email || "",
+      }
+    : defaultForm();
   showDialog.value = true;
 }
 
@@ -111,12 +140,22 @@ async function handleSave() {
     return;
   }
   saving.value = true;
+  // `email` is validated with @IsEmail on the backend, so send undefined (not "")
+  // when the optional fields are blank.
+  const payload = {
+    code: form.value.code,
+    name: form.value.name,
+    manufacturerName: form.value.manufacturerName || undefined,
+    address: form.value.address || undefined,
+    telephone: form.value.telephone || undefined,
+    email: form.value.email || undefined,
+  };
   try {
     if (editing.value) {
-      await masterStore.updateSupplier(editing.value.id, { ...form.value });
+      await masterStore.updateSupplier(editing.value.id, payload);
       toast.add({ severity: "success", summary: "แก้ไขสำเร็จ", life: 3000 });
     } else {
-      await masterStore.addSupplier({ ...form.value });
+      await masterStore.addSupplier(payload);
       toast.add({ severity: "success", summary: "เพิ่มสำเร็จ", life: 3000 });
     }
     showDialog.value = false;
