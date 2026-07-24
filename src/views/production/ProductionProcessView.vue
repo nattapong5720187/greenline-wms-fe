@@ -204,6 +204,14 @@
           <div style="font-size: 13px; color: #4b7a5e">{{ formatDt(order.updatedAt) }}</div>
         </div>
       </div>
+
+      <div class="dl-card">
+        <div class="dl-card-title"><i class="pi pi-file-pdf" /> ดาวน์โหลดเอกสารการผสม</div>
+        <div class="dl-card-btns">
+          <Button label="ผสม Premix → ซอส" icon="pi pi-download" outlined size="small" @click="downloadMixReport('sauce')" />
+          <Button label="ผสมซอส + เนื้อแปรรูป" icon="pi pi-download" outlined size="small" @click="downloadMixReport('meat')" />
+        </div>
+      </div>
       <div v-if="order.mixRecords.length">
         <div class="tbl-head"><span class="tbl-title"><i class="pi pi-list" /> บันทึกการผสม ({{ order.mixRecords.length }})</span></div>
         <table class="edit-tbl">
@@ -235,6 +243,9 @@
     ไม่พบใบสั่งผลิต
   </div>
 
+  <!-- Preview + download modal for the two mixer report sheets -->
+  <MixReportPreviewDialog v-model:visible="previewVisible" :header="previewHeader" :html="previewHtml" />
+
   <!-- Time picker dropdown (teleported to body to escape table overflow) -->
   <Teleport to="body">
     <div v-if="openPickerId" class="time-drop" :style="{ top: pickerPos.top + 'px', left: pickerPos.left + 'px' }" @click.stop>
@@ -255,6 +266,8 @@
 <script setup>
 import { useMasterStore } from "@/stores/master";
 import { useProductionStore } from "@/stores/production";
+import { buildMixReportHtml } from "@/utils/mixReportTemplate";
+import MixReportPreviewDialog from "./MixReportPreviewDialog.vue";
 import Button from "primevue/button";
 import Dropdown from "primevue/dropdown";
 import InputNumber from "primevue/inputnumber";
@@ -546,61 +559,90 @@ function machineLabel(id) {
   return m ? `${m.code} — ${m.name}` : "—";
 }
 
-function downloadMixReport(type) {
+const MIX_TITLE = {
+  sauce: "รายงานการผสมผลิตที่เครื่อง Homo Mixer",
+  meat: "รายงานผสมผลิตภัณฑ์กันที่เครื่อง Ribbon Mixer",
+};
+
+// Default machine name for the report — during MIXING the live sheet holds a
+// chosen machine; in SUCCESS we fall back to the first machine of that type.
+function reportMachineName(type, machineId) {
+  if (machineId) return machineLabel(machineId);
+  const opts = type === "meat" ? ribbonMixerOptions.value : homoMixerOptions.value;
+  return opts[0]?.label || machineLabel(order.value?.machineId);
+}
+
+// Normalize the live editing sheet (MIXING step) into the report shape.
+function reportFromLiveSheet(type) {
   const sheet = type === "meat" ? meat : sauce;
-  const title = type === "meat" ? "รายงานผสมผลิตภัณฑ์กันที่เครื่อง Ribbon Mixer" : "รายงานการผสมผลิตที่เครื่อง Homo Mixer";
-  const esc = (v) => String(v ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   const cols = sheet.columns || [];
-  const isMeat = type === "meat";
-  const headCells = [
-    "ครั้งที่ Mix",
-    ...cols.map((c) => esc(c.label) + (c.target != null ? ` (${c.target} ${esc(c.unit)})` : "")),
-    "End",
-    ...(isMeat ? ["อุณหภูมิ"] : []),
-  ];
-  const bodyRows = (sheet.rows || []).map((r, i) => {
-    const ingCells = cols.map((c) => `<td>${esc(r.starts?.[c.key])}</td>`);
-    const cells = [`<td class="no">${i + 1}</td>`, ...ingCells, `<td>${esc(r.end)}</td>`, ...(isMeat ? [`<td>${esc(r.temp)}</td>`] : [])];
-    return `<tr>${cells.join("")}</tr>`;
+  return {
+    isMeat: type === "meat",
+    title: MIX_TITLE[type],
+    docNo: order.value?.docNo || "",
+    formName: sheet.name,
+    code: sheet.code,
+    date: sheet.date,
+    mixSize: sheet.mixSize,
+    machineName: reportMachineName(type, sheet.machineId),
+    columns: cols.map((c) => ({ label: c.label, target: c.target, unit: c.unit })),
+    rows: (sheet.rows || []).map((r, i) => ({
+      no: i + 1,
+      values: cols.map((c) => r.starts?.[c.key] || ""),
+      end: r.end || "",
+      temp: r.temp,
+    })),
+  };
+}
+
+// Reconstruct the report from saved mixRecords (SUCCESS step) so the document
+// can be re-downloaded after coming back to a completed order.
+function reportFromRecords(type) {
+  const ings = (order.value?.ingredients || []).filter((i) =>
+    type === "meat" ? i.stepType !== "PREMIX" : i.stepType === "PREMIX",
+  );
+  const stage = type === "meat" ? 2 : 1;
+  const recs = (order.value?.mixRecords || []).filter((r) => r.stage === stage);
+  const mixNos = [...new Set(recs.map((r) => r.mixNo))].sort((a, b) => a - b);
+  const rows = mixNos.map((no) => {
+    const rowRecs = recs.filter((r) => r.mixNo === no);
+    const endRec = rowRecs.find((r) => r.endAt);
+    const tempRec = rowRecs.find((r) => r.sauceTemp != null);
+    return {
+      no,
+      values: ings.map((ing) => {
+        const rec = rowRecs.find((r) => r.productionIngredientId === ing.id);
+        return rec?.startedAt ? timeOnly(rec.startedAt) : "";
+      }),
+      end: endRec ? timeOnly(endRec.endAt) : "",
+      temp: tempRec ? tempRec.sauceTemp : null,
+    };
   });
-  const html = `<!doctype html><html lang="th"><head><meta charset="utf-8">
-<title>${esc(title)} — ${esc(order.value?.docNo || "")}</title>
-<style>
-  body { font-family: 'Kanit', 'Sarabun', sans-serif; color: #1e2a3b; padding: 28px; }
-  h1 { text-align: center; font-size: 18px; border-bottom: 2px solid #1e2a3b; padding-bottom: 10px; }
-  .meta { display: flex; flex-wrap: wrap; gap: 18px 32px; margin: 16px 0 20px; font-size: 13px; }
-  .meta b { display: block; color: #64748b; font-weight: 500; font-size: 11px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { background: #1e2a3b; color: #fff; padding: 8px; text-align: center; }
-  td { border: 1px solid #e2e8f0; padding: 7px 8px; text-align: center; }
-  td.no { background: #f8fafc; font-weight: 700; }
-  .foot { margin-top: 16px; font-size: 11px; color: #94a3b8; text-align: right; }
-</style></head><body>
-<h1>${esc(title)}</h1>
-<div class="meta">
-  <div><b>เลขที่ใบสั่งผลิต</b>${esc(order.value?.docNo || "—")}</div>
-  <div><b>ชื่อสูตร (Name)</b>${esc(sheet.name || "—")}</div>
-  <div><b>Code</b>${esc(sheet.code || "—")}</div>
-  <div><b>Date</b>${esc(sheet.date || "—")}</div>
-  <div><b>Mix size (kg)</b>${esc(sheet.mixSize ?? "—")}</div>
-  <div><b>เครื่องจักร (Machine)</b>${esc(machineLabel(sheet.machineId))}</div>
-</div>
-<table>
-  <thead><tr>${headCells.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
-  <tbody>${bodyRows.join("")}</tbody>
-</table>
-<div class="foot">พิมพ์เมื่อ ${new Date().toLocaleString("th-TH")}</div>
-</body></html>`;
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${order.value?.docNo || "mix"}-${type === "meat" ? "ribbon-mixer" : "homo-mixer"}.html`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  toast.add({ severity: "success", summary: "ดาวน์โหลดเอกสารแล้ว", life: 2500 });
+  const firstRec = recs.find((r) => r.startedAt);
+  return {
+    isMeat: type === "meat",
+    title: MIX_TITLE[type],
+    docNo: order.value?.docNo || "",
+    formName: formula.value?.name || "",
+    code: formula.value?.code || "",
+    date: firstRec?.startedAt ? String(firstRec.startedAt).slice(0, 10) : order.value?.planDate || "",
+    mixSize: type === "meat" ? "" : ings.reduce((s, i) => s + Number(i.quantity || 0), 0),
+    machineName: reportMachineName(type, null),
+    columns: ings.map((i) => ({ label: i.materialName, target: Number(i.quantity), unit: i.unit })),
+    rows,
+  };
+}
+
+// ---- preview + download modal ----
+const previewVisible = ref(false);
+const previewHtml = ref("");
+const previewHeader = ref("");
+
+function downloadMixReport(type) {
+  const report = order.value?.status === "SUCCESS" ? reportFromRecords(type) : reportFromLiveSheet(type);
+  previewHtml.value = buildMixReportHtml(report);
+  previewHeader.value = `ตัวอย่างเอกสาร — ${MIX_TITLE[type]}`;
+  previewVisible.value = true;
 }
 </script>
 
@@ -709,6 +751,10 @@ function downloadMixReport(type) {
 .form-field { display: flex; flex-direction: column; gap: 6px; }
 .form-field label { font-size: 13px; font-weight: 500; }
 .done-banner { display: flex; align-items: center; gap: 16px; padding: 20px; background: #f0fdf4; border-radius: 10px; margin-bottom: 20px; }
+.dl-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 22px; background: #fbfdff; }
+.dl-card-title { font-size: 13px; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+.dl-card-title i { color: #dc2626; }
+.dl-card-btns { display: flex; gap: 10px; flex-wrap: wrap; }
 .cancelled-card { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px; text-align: center; }
 .po-badge { display: inline-block; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; }
 .po-badge.confirmed { background: #dbeafe; color: #1d4ed8; }

@@ -8,7 +8,13 @@
           <div class="page-subtitle">{{ isEdit ? form.code : "กรอกข้อมูลสูตรและส่วนผสม BOM" }}</div>
         </div>
       </div>
-      <Button :label="isEdit ? 'บันทึก' : 'สร้างสูตร'" icon="pi pi-save" class="btn-primary" :loading="saving" @click="save" />
+      <Button
+        :label="isEdit ? 'บันทึก' : 'สร้างสูตร'"
+        icon="pi pi-save"
+        class="btn-primary"
+        :loading="saving"
+        @click="save"
+      />
     </div>
 
     <!-- ข้อมูลทั่วไป -->
@@ -345,7 +351,7 @@ const form = ref({
 });
 
 const animalTypeOptions = [
-  { label: "หมา", value: "dog" },
+  { label: "สุนัข", value: "dog" },
   { label: "แมว", value: "cat" },
 ];
 const packagingTypeOptions = [
@@ -358,9 +364,7 @@ const packagingSizeOptions = computed(() =>
     value: p.id,
   })),
 );
-const brandOptions = computed(() =>
-  masterStore.brands.map((b) => ({ label: b.name, value: b.id })),
-);
+const brandOptions = computed(() => masterStore.brands.map((b) => ({ label: b.name, value: b.id })));
 
 // ── BOM per-mixsize state ──────────────────────────────────
 const activeMixsizeId = ref(null);
