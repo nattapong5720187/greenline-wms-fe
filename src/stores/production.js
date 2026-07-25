@@ -1,26 +1,37 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiGetFormulas, apiGetFormula, apiCreateFormula, apiUpdateFormula, apiDeleteFormula } from '@/api/formulas'
-import { apiGetProductionOrders, apiGetProductionOrder, apiCreateProductionOrder, apiUpdateProductionOrder, apiDeleteProductionOrder } from '@/api/productionOrders'
+import { apiGetProductionOrders, apiGetProductionOrder, apiCreateProductionOrder, apiUpdateProductionOrder, apiDeleteProductionOrder, apiReplaceMixRecords } from '@/api/productionOrders'
 import { useStockStore } from './stock'
 import { useMasterStore } from './master'
 
 // Map a backend production order to the view-model the (still mock-shaped) views
 // read. `mixsizeId` is stringified to line up with a formula VM's mixSize `key`.
 function toOrderVM(o) {
+  // The detail read returns mix records split by stage; flatten them into one
+  // list (each record carries its own `stage`) for the views that iterate all
+  // records, while keeping the per-stage arrays available too.
+  const firstStage = o.firstStageMixRecords || []
+  const secondStage = o.secondStageMixRecords || []
   return {
     id: o.id,
     docNo: o.prodNo,
     formulaId: o.formulaId,
     mixsizeId: String(o.mixSizeId),
     mixSizeId: o.mixSizeId,
-    machineId: o.machineId,
+    // Stage-1 machine = Homo (ซอส), stage-2 = Ribbon (เนื้อ). `machineId` kept as
+    // an alias to the primary machine for older readers.
+    firstMachineId: o.firstMachineId ?? null,
+    secondMachineId: o.secondMachineId ?? null,
+    machineId: o.firstMachineId ?? null,
     status: o.status, // ACCEPT | MIXING | SUCCESS | CANCELED
     planDate: o.planDate,
     createdAt: o.createdAt,
     createdBy: o.createdBy,
     ingredients: o.ingredients || [],
-    mixRecords: o.mixRecords || [],
+    firstStageMixRecords: firstStage,
+    secondStageMixRecords: secondStage,
+    mixRecords: [...firstStage, ...secondStage],
   }
 }
 
@@ -241,6 +252,17 @@ export const useProductionStore = defineStore('production', () => {
     return vm
   }
 
+  // Replace one stage's (1=ซอส, 2=เนื้อ) mix records. Only allowed while MIXING;
+  // sends the whole stage list — the backend removes and re-inserts that stage.
+  async function saveMixRecords(id, records) {
+    const { data } = await apiReplaceMixRecords(id, records)
+    const vm = toOrderVM(data)
+    const i = orders.value.findIndex(o => o.id === vm.id)
+    if (i !== -1) orders.value[i] = vm
+    else orders.value.unshift(vm)
+    return vm
+  }
+
   // Re-match lots after the user edits / adds / removes raw materials in step 1.
   function setIngredients(orderId, list) {
     const order = orders.value.find(o => o.id === orderId)
@@ -347,7 +369,7 @@ export const useProductionStore = defineStore('production', () => {
     formulas, formulasLoading, orders, ordersLoading, ordersMeta, counts,
     getFormulaById, fetchFormulas, fetchFormula, addFormula, updateFormula, deleteFormula,
     fetchOrders, fetchOrder, getOrderById, createOrder, updateOrder, cancelOrder,
-    setIngredients, startProcessing, completeMixing, receiveSemi,
+    saveMixRecords, setIngredients, startProcessing, completeMixing, receiveSemi,
     matchLots, matchLotsForMixsize,
   }
 })

@@ -42,16 +42,20 @@
                 :disabled="loading"
                 autocomplete="current-password"
               />
-              <button type="button" class="pw-toggle" @click="showPassword = !showPassword" :disabled="loading" tabindex="-1">
+              <button
+                type="button"
+                class="pw-toggle"
+                @click="showPassword = !showPassword"
+                :disabled="loading"
+                tabindex="-1"
+              >
                 <i :class="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'" />
               </button>
             </div>
           </div>
 
           <transition name="slide-up">
-            <div v-if="error" class="error-msg">
-              <i class="pi pi-exclamation-circle" /> {{ error }}
-            </div>
+            <div v-if="error" class="error-msg"><i class="pi pi-exclamation-circle" /> {{ error }}</div>
           </transition>
 
           <Button
@@ -63,44 +67,44 @@
           />
         </form>
 
-        <div class="login-hint">
+        <!-- <div class="login-hint">
           <i class="pi pi-info-circle" />
           Demo: username <strong>admin</strong> / password <strong>Test#1234</strong>
-        </div>
+        </div> -->
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import InputText from 'primevue/inputtext'
-import Button from 'primevue/button'
+import { useAuthStore } from "@/stores/auth";
+import Button from "primevue/button";
+import InputText from "primevue/inputtext";
+import { ref } from "vue";
+import { useRouter } from "vue-router";
 
-const router = useRouter()
-const authStore = useAuthStore()
+const router = useRouter();
+const authStore = useAuthStore();
 
-const form = ref({ username: '', password: '' })
-const showPassword = ref(false)
-const loading = ref(false)
-const error = ref('')
+const form = ref({ username: "", password: "" });
+const showPassword = ref(false);
+const loading = ref(false);
+const error = ref("");
 
 async function handleLogin() {
-  error.value = ''
+  error.value = "";
   if (!form.value.username || !form.value.password) {
-    error.value = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน'
-    return
+    error.value = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
+    return;
   }
-  loading.value = true
+  loading.value = true;
   try {
-    await authStore.login(form.value.username, form.value.password)
-    router.push('/dashboard')
+    await authStore.login(form.value.username, form.value.password);
+    router.push("/dashboard");
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่'
+    error.value = e.response?.data?.message || e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>
@@ -124,13 +128,19 @@ async function handleLogin() {
 }
 
 .login-left::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(circle at 20% 80%, rgba(220,38,38,0.12) 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, rgba(255,255,255,0.04) 0%, transparent 40%);
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(220, 38, 38, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.04) 0%, transparent 40%);
 }
 
-.login-brand { text-align: center; position: relative; z-index: 1; }
+.login-brand {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
 
 .brand-logo-img {
   width: 200px;
@@ -140,26 +150,40 @@ async function handleLogin() {
   border-radius: 16px;
   padding: 16px 24px;
   margin: 0 auto 20px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
-.brand-desc { font-size: 15px; color: rgba(255,255,255,0.6); }
+.brand-desc {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.6);
+}
 
 .login-deco {
-  display: flex; flex-direction: column; gap: 12px;
-  margin-top: 48px; position: relative; z-index: 1; width: 100%; max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 48px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 280px;
 }
 
 .deco-card {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 12px 16px;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 13px;
-  display: flex; align-items: center; gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   backdrop-filter: blur(4px);
 }
-.deco-card i { color: var(--gl-red); font-size: 16px; }
+.deco-card i {
+  color: var(--gl-red);
+  font-size: 16px;
+}
 
 .login-right {
   width: 460px;
@@ -175,15 +199,34 @@ async function handleLogin() {
   max-width: 360px;
 }
 
-.login-header { margin-bottom: 28px; }
-.login-header h2 { font-size: 24px; font-weight: 700; color: var(--gl-navy); margin-bottom: 4px; }
-.login-header p { font-size: 14px; color: var(--gl-text-muted); }
+.login-header {
+  margin-bottom: 28px;
+}
+.login-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gl-navy);
+  margin-bottom: 4px;
+}
+.login-header p {
+  font-size: 14px;
+  color: var(--gl-text-muted);
+}
 
-.login-form { display: flex; flex-direction: column; gap: 16px; }
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-.field { display: flex; flex-direction: column; }
+.field {
+  display: flex;
+  flex-direction: column;
+}
 
-.req { color: var(--gl-red); }
+.req {
+  color: var(--gl-red);
+}
 
 .error-msg {
   background: var(--gl-red-light);
@@ -192,7 +235,9 @@ async function handleLogin() {
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 13px;
-  display: flex; align-items: center; gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .login-btn {
@@ -205,12 +250,14 @@ async function handleLogin() {
 .login-hint {
   margin-top: 20px;
   padding: 10px 14px;
-  background: #EFF6FF;
-  border: 1px solid #BFDBFE;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
   font-size: 12px;
   color: #1e40af;
-  display: flex; align-items: center; gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .pw-wrap {
@@ -238,11 +285,20 @@ async function handleLogin() {
   transition: color 0.15s;
 }
 
-.pw-toggle:hover { color: var(--gl-navy); }
-.pw-toggle:disabled { opacity: 0.4; cursor: default; }
+.pw-toggle:hover {
+  color: var(--gl-navy);
+}
+.pw-toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 
 @media (max-width: 768px) {
-  .login-left { display: none; }
-  .login-right { width: 100%; }
+  .login-left {
+    display: none;
+  }
+  .login-right {
+    width: 100%;
+  }
 }
 </style>

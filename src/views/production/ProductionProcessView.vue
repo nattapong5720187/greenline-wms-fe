@@ -17,14 +17,24 @@
 
     <!-- Stepper -->
     <div v-if="order.status !== 'CANCELED'" class="stepper-card">
-      <div v-for="(step, i) in steps" :key="i" class="step-item">
-        <div :class="['step-circle', stepState(i)]">
-          <i v-if="stepState(i) === 'done'" class="pi pi-check" />
-          <span v-else>{{ i + 1 }}</span>
+      <div class="stepper-steps">
+        <div v-for="(step, i) in steps" :key="i" class="step-item">
+          <div :class="['step-circle', stepState(i)]">
+            <i v-if="stepState(i) === 'done'" class="pi pi-check" />
+            <span v-else>{{ i + 1 }}</span>
+          </div>
+          <div :class="['step-label', stepState(i)]">{{ step }}</div>
+          <div v-if="i < steps.length - 1" :class="['step-line', stepState(i) === 'done' ? 'line-done' : '']" />
         </div>
-        <div :class="['step-label', stepState(i)]">{{ step }}</div>
-        <div v-if="i < steps.length - 1" :class="['step-line', stepState(i) === 'done' ? 'line-done' : '']" />
       </div>
+      <Button
+        v-if="order.status === 'MIXING'"
+        label="ผสมเสร็จ → เสร็จสิ้น"
+        icon="pi pi-check"
+        class="btn-primary complete-btn"
+        :loading="busy"
+        @click="doCompleteMixing"
+      />
     </div>
 
     <!-- ===== ACCEPT: ingredient snapshot + start ===== -->
@@ -85,7 +95,7 @@
         <div class="sheet-head">
           <div class="form-field"><label>ชื่อสูตร (Name)</label><InputText v-model="sauce.name" disabled style="width: 220px" /></div>
           <div class="form-field"><label>รหัสสูตร (Code)</label><InputText v-model="sauce.code" disabled style="width: 150px" /></div>
-          <div class="form-field"><label>Date</label><InputText v-model="sauce.date" type="date" style="width: 160px" /></div>
+          <div class="form-field"><label>Date</label><InputText v-model="sauce.date" type="date" disabled style="width: 160px" /></div>
           <div class="form-field"><label>Mix size (kg)</label><InputNumber v-model="sauce.mixSize" :min="0" disabled style="width: 120px" /></div>
           <div class="form-field">
             <label>เครื่องจักร (Machine)</label>
@@ -129,7 +139,14 @@
         </div>
         <button class="add-round" @click="addSauceRow"><i class="pi pi-plus" /> เพิ่มรอบ Mix</button>
         <div class="action-bar">
-          <Button label="ถัดไป → ผสมเนื้อ" icon="pi pi-arrow-right" class="btn-primary" @click="mixSub = 'meat'" />
+          <Button
+            label="บันทึกข้อมูล"
+            icon="pi pi-save"
+            class="btn-primary"
+            :loading="savingStage === 'sauce'"
+            :disabled="!sauceHasInput"
+            @click="saveStage('sauce')"
+          />
         </div>
       </div>
 
@@ -142,7 +159,7 @@
         <div class="sheet-head">
           <div class="form-field"><label>ชื่อสูตร (Name)</label><InputText v-model="meat.name" disabled style="width: 220px" /></div>
           <div class="form-field"><label>Code</label><InputText v-model="meat.code" disabled style="width: 150px" /></div>
-          <div class="form-field"><label>Date</label><InputText v-model="meat.date" type="date" style="width: 160px" /></div>
+          <div class="form-field"><label>Date</label><InputText v-model="meat.date" type="date" disabled style="width: 160px" /></div>
           <div class="form-field"><label>Mix size (kg)</label><InputNumber v-model="meat.mixSize" :min="0" disabled style="width: 120px" /></div>
           <div class="form-field">
             <label>เครื่องจักร (Machine)</label>
@@ -189,8 +206,14 @@
         <button class="add-round" @click="addMeatRow"><i class="pi pi-plus" /> เพิ่มรอบ Mix</button>
 
         <div class="action-bar">
-          <Button label="ย้อนกลับ" text icon="pi pi-arrow-left" @click="mixSub = 'sauce'" />
-          <Button label="ผสมเสร็จ → สำเร็จ" icon="pi pi-check" class="btn-primary" :loading="busy" @click="doCompleteMixing" />
+          <Button
+            label="บันทึกข้อมูล"
+            icon="pi pi-save"
+            class="btn-primary"
+            :loading="savingStage === 'meat'"
+            :disabled="!meatHasInput"
+            @click="saveStage('meat')"
+          />
         </div>
       </div>
     </div>
@@ -359,6 +382,49 @@ function makeMeatRow() {
 function addSauceRow() { sauce.rows.push(makeSauceRow()); }
 function addMeatRow() { meat.rows.push(makeMeatRow()); }
 
+// Whether the user has entered at least one start time — gates the save button.
+const sauceHasInput = computed(() => sauce.rows.some((r) => Object.values(r.starts).some((v) => v)));
+const meatHasInput = computed(() => meat.rows.some((r) => Object.values(r.starts).some((v) => v)));
+
+// ISO datetime → local "HH:MM" (round-trips values written by the time picker).
+function hhmmFromISO(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+// Local yyyy-mm-dd of the first record that has a start time.
+function dateFromRecords(records) {
+  const rec = (records || []).find((r) => r.startedAt);
+  if (!rec) return "";
+  const d = new Date(rec.startedAt);
+  if (isNaN(d.getTime())) return "";
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+}
+// Rebuild a stage's editable rows from its saved mix records (grouped by mixNo);
+// falls back to one blank row when the stage has none yet.
+function rowsFromStage(columns, records, isMeat) {
+  const blank = () => (isMeat ? makeMeatRow() : makeSauceRow());
+  if (!records?.length) return [blank()];
+  const byMix = new Map();
+  records.forEach((r) => {
+    const no = r.mixNo || 1;
+    if (!byMix.has(no)) byMix.set(no, { starts: {}, end: "", temp: null });
+    const row = byMix.get(no);
+    const col = columns.find((c) => c.ingredientId === r.productionIngredientId);
+    if (col) row.starts[col.key] = hhmmFromISO(r.startedAt);
+    if (r.endAt) row.end = hhmmFromISO(r.endAt);
+    if (isMeat && r.sauceTemp != null) row.temp = Number(r.sauceTemp);
+  });
+  return [...byMix.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, v]) => {
+      const starts = Object.fromEntries(columns.map((c) => [c.key, v.starts[c.key] || ""]));
+      return isMeat ? { starts, end: v.end, temp: v.temp } : { starts, end: v.end };
+    });
+}
+
 // Build the mixer sheets from the order's ingredient snapshot. Each ingredient
 // column carries its `ingredientId` (= productionIngredientId) so the grid can
 // be mapped back to backend mix records on save.
@@ -372,31 +438,38 @@ function initMix() {
   const sCols = premixIngs.map((i, idx) => ({
     key: "p" + idx, label: i.materialName, target: Number(i.quantity), unit: i.unit, ingredientId: i.id,
   }));
-
-  sauce.name = formula.value?.name ?? "";
-  sauce.code = formula.value?.code ?? "";
-  sauce.date = todayStr();
-  sauce.mixSize = premixIngs.reduce((sum, i) => sum + Number(i.quantity), 0);
-  sauce.machineId = homoMixerOptions.value[0]?.value ?? order.value.machineId ?? null;
-  sauce.columns = sCols;
-  sauce.rows = [makeSauceRow()];
-
   const mCols = meatIngs.map((i, idx) => ({
     key: "m" + idx, label: i.materialName, target: Number(i.quantity), unit: i.unit, ingredientId: i.id,
   }));
+
+  // Prefill from any records already saved for this order (per stage).
+  const stage1 = order.value.firstStageMixRecords || [];
+  const stage2 = order.value.secondStageMixRecords || [];
+
+  sauce.name = formula.value?.name ?? "";
+  sauce.code = formula.value?.code ?? "";
+  sauce.date = dateFromRecords(stage1) || todayStr();
+  sauce.mixSize = premixIngs.reduce((sum, i) => sum + Number(i.quantity), 0);
+  sauce.machineId = order.value.firstMachineId ?? homoMixerOptions.value[0]?.value ?? null;
+  sauce.columns = sCols;
+  sauce.rows = rowsFromStage(sCols, stage1, false);
+
   meat.name = formula.value?.name ?? "";
   meat.code = formula.value?.code ?? "";
-  meat.date = todayStr();
+  meat.date = dateFromRecords(stage2) || todayStr();
   meat.mixSize = 0;
-  meat.machineId = ribbonMixerOptions.value[0]?.value ?? null;
+  meat.machineId = order.value.secondMachineId ?? ribbonMixerOptions.value[0]?.value ?? null;
   meat.columns = mCols;
-  meat.rows = [makeMeatRow()];
+  meat.rows = rowsFromStage(mCols, stage2, true);
   mixSub.value = "sauce";
 }
 
-// re-init the sheets whenever the order enters the MIXING step
+// Re-init the sheets only when the order actually changes (id) or newly enters
+// MIXING — using a primitive key so this does NOT fire on every store refresh
+// (e.g. after saving a stage). Otherwise the tab would jump back and unsaved
+// edits in the other tab would be rebuilt from the server. The user stays put.
 watch(
-  () => [order.value?.id, order.value?.status],
+  () => `${order.value?.id ?? ""}:${order.value?.status ?? ""}`,
   () => { if (order.value?.status === "MIXING") initMix(); },
 );
 
@@ -488,44 +561,61 @@ function toISO(date, time) {
   return isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
-// Map the two mixer sheets to backend mix records: one record per
-// (round × ingredient column) that has a start time. Homo → stage 1, Ribbon → 2.
-function buildMixRecords() {
+// Build ONE stage's mix records from its sheet: one record per (round × ingredient
+// column) that has a start time. Sauce → stage 1, meat → stage 2 (+ sauceTemp).
+function buildStageRecords(type) {
+  const sheet = type === "meat" ? meat : sauce;
+  const stage = type === "meat" ? 2 : 1;
   const recs = [];
-  sauce.rows.forEach((row, ri) => {
-    sauce.columns.forEach((c) => {
+  sheet.rows.forEach((row, ri) => {
+    sheet.columns.forEach((c) => {
       if (!c.ingredientId || !row.starts[c.key]) return;
-      recs.push({
-        productionIngredientId: c.ingredientId, stage: 1, mixNo: ri + 1,
-        startedAt: toISO(sauce.date, row.starts[c.key]), endAt: toISO(sauce.date, row.end),
-      });
-    });
-  });
-  meat.rows.forEach((row, ri) => {
-    meat.columns.forEach((c) => {
-      if (!c.ingredientId || !row.starts[c.key]) return;
-      recs.push({
-        productionIngredientId: c.ingredientId, stage: 2, mixNo: ri + 1,
-        startedAt: toISO(meat.date, row.starts[c.key]), endAt: toISO(meat.date, row.end),
-        sauceTemp: row.temp != null ? Number(row.temp) : undefined,
-      });
+      const rec = {
+        productionIngredientId: c.ingredientId,
+        stage,
+        mixNo: ri + 1,
+        startedAt: toISO(sheet.date, row.starts[c.key]),
+        endAt: toISO(sheet.date, row.end),
+      };
+      if (stage === 2 && row.temp != null && row.temp !== "") rec.sauceTemp = Number(row.temp);
+      recs.push(rec);
     });
   });
   return recs;
 }
 
-async function doCompleteMixing() {
-  const records = buildMixRecords();
-  busy.value = true;
+const savingStage = ref(null);
+
+// Save one stage via the replace endpoint — sends the whole stage list, which the
+// backend removes-and-reinserts (idempotent). Sauce = stage 1, meat = stage 2.
+async function saveStage(type) {
+  const records = buildStageRecords(type);
+  if (!records.length) {
+    toast.add({ severity: "warn", summary: "กรุณากรอกเวลาอย่างน้อย 1 รายการ", life: 3000 });
+    return;
+  }
+  savingStage.value = type;
   try {
-    if (records.length) {
-      await productionStore.updateOrder(order.value.id, { status: "MIXING", mixRecords: records });
-    }
-    await productionStore.updateOrder(order.value.id, { status: "SUCCESS" });
-    toast.add({ severity: "success", summary: "ผสมเสร็จ — ผลิตเสร็จสิ้น", life: 3000 });
-    router.push("/production/orders");
+    await productionStore.saveMixRecords(order.value.id, records);
+    toast.add({ severity: "success", summary: "บันทึกข้อมูลแล้ว", life: 2500 });
   } catch (e) {
     const msg = e.response?.data?.message || "บันทึกไม่สำเร็จ";
+    toast.add({ severity: "error", summary: Array.isArray(msg) ? msg.join(", ") : msg, life: 4000 });
+  } finally {
+    savingStage.value = null;
+  }
+}
+
+// Complete = move status to SUCCESS via the existing update endpoint. Mix records
+// are persisted separately per stage via saveStage.
+async function doCompleteMixing() {
+  busy.value = true;
+  try {
+    await productionStore.updateOrder(order.value.id, { status: "SUCCESS" });
+    toast.add({ severity: "success", summary: "ผลิตเสร็จสิ้น", life: 3000 });
+    router.push("/production/orders");
+  } catch (e) {
+    const msg = e.response?.data?.message || "อัปเดตสถานะไม่สำเร็จ";
     toast.add({ severity: "error", summary: Array.isArray(msg) ? msg.join(", ") : msg, life: 4000 });
   } finally {
     busy.value = false;
@@ -651,6 +741,8 @@ function downloadMixReport(type) {
   display: flex; align-items: center; background: #fff; border-radius: 12px;
   padding: 20px 28px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); margin-bottom: 16px;
 }
+.stepper-steps { display: flex; align-items: center; flex: 1; }
+.complete-btn { flex-shrink: 0; margin-left: 20px; }
 .step-item { display: flex; align-items: center; }
 .step-circle {
   width: 34px; height: 34px; border-radius: 50%;

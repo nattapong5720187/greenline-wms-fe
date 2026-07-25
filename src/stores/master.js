@@ -39,6 +39,11 @@ export const useMasterStore = defineStore('master', () => {
   const suppliersLoading = ref(false)
   const products = ref([])
   const productsLoading = ref(false)
+  // Server-paginated list state for the SKU page (distinct from `products`, which
+  // stays the full reference cache used by dropdowns/lookups across the app).
+  const productList = ref([])
+  const productListLoading = ref(false)
+  const productListMeta = ref({ page: 1, limit: 15, total: 0, totalPages: 0 })
   const machines = ref([])
   const machinesLoading = ref(false)
   const packagingSizes = ref([])
@@ -166,13 +171,42 @@ export const useMasterStore = defineStore('master', () => {
   }
 
   // ---- Products ----
+  // GET /products is paginated (max limit 100). Reference consumers (formula BOM,
+  // stock, documents, packing, dashboard…) need the FULL live list, so walk every
+  // page and flatten into `products`.
   async function fetchProducts() {
     productsLoading.value = true
     try {
-      const { data } = await apiGetProducts()
-      products.value = data.map(normalizeProduct)
+      const limit = 100
+      const first = (await apiGetProducts({ page: 1, limit })).data
+      let all = first.data || []
+      const totalPages = first.totalPages || 1
+      for (let page = 2; page <= totalPages; page++) {
+        const { data } = await apiGetProducts({ page, limit })
+        all = all.concat(data.data || [])
+      }
+      products.value = all.map(normalizeProduct)
     } finally {
       productsLoading.value = false
+    }
+  }
+
+  // One server page for the SKU list view. Sends only the filters the backend
+  // supports: title (name contains), sku (contains), categoryIds (CSV), page, limit.
+  async function fetchProductList({ page = 1, limit = 15, title, sku, categoryIds } = {}) {
+    productListLoading.value = true
+    try {
+      const params = { page, limit }
+      if (title?.trim()) params.title = title.trim()
+      if (sku?.trim()) params.sku = sku.trim()
+      if (categoryIds?.length) params.categoryIds = categoryIds.join(',')
+      const { data } = await apiGetProducts(params)
+      productList.value = (data.data || []).map(normalizeProduct)
+      productListMeta.value = {
+        page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
+      }
+    } finally {
+      productListLoading.value = false
     }
   }
   async function addProduct(data) {
@@ -284,6 +318,7 @@ export const useMasterStore = defineStore('master', () => {
   return {
     warehouses, warehousesLoading, categories, categoriesLoading, units, unitsLoading,
     suppliers, suppliersLoading, products, productsLoading, machines, machinesLoading, mixsizes,
+    productList, productListLoading, productListMeta,
     packagingSizes, packagingSizesLoading, brands, brandsLoading,
 
     fetchWarehouses, addWarehouse, updateWarehouse, deleteWarehouse,
@@ -291,7 +326,7 @@ export const useMasterStore = defineStore('master', () => {
     fetchUnits, addUnit, updateUnit, deleteUnit,
     addMixsize, updateMixsize, deleteMixsize, getMixsizeById,
     fetchSuppliers, addSupplier, updateSupplier, deleteSupplier,
-    fetchProducts, addProduct, updateProduct, deleteProduct,
+    fetchProducts, fetchProductList, addProduct, updateProduct, deleteProduct,
 
     fetchMachines, addMachine, updateMachine, deleteMachine,
     fetchPackagingSizes, addPackagingSize, updatePackagingSize, deletePackagingSize, getPackagingSizeById,

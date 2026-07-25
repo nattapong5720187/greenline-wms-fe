@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">สินค้า / SKU</div>
-        <div class="page-subtitle">จัดการรายการสินค้าทั้งหมด ({{ filtered.length }} รายการ)</div>
+        <div class="page-subtitle">จัดการรายการสินค้าทั้งหมด ({{ masterStore.productListMeta.total }} รายการ)</div>
       </div>
       <RouterLink to="/master/products/create">
         <Button label="เพิ่มสินค้า" icon="pi pi-plus" class="btn-primary" />
@@ -15,7 +15,7 @@
       <div class="toolbar">
         <span class="p-input-icon-left search-wrap">
           <i class="pi pi-search" />
-          <InputText v-model="search" placeholder="ค้นหารหัส / ชื่อสินค้า..." style="padding-left: 2.2rem; width: 280px;" />
+          <InputText v-model="search" placeholder="ค้นหาชื่อสินค้า..." style="padding-left: 2.2rem; width: 280px;" />
         </span>
         <Dropdown
           v-model="filterCategory"
@@ -29,14 +29,19 @@
       </div>
 
       <DataTable
-        :value="filtered"
+        :value="masterStore.productList"
+        lazy
         :paginator="true"
-        :rows="15"
-        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
+        :rows="masterStore.productListMeta.limit"
+        :first="first"
+        :totalRecords="masterStore.productListMeta.total"
+        :rowsPerPageOptions="[15, 20, 50, 100]"
+        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
         currentPageReportTemplate="{first}–{last} จาก {totalRecords}"
         size="small"
         stripedRows
-        :loading="loading"
+        :loading="masterStore.productListLoading"
+        @page="onPage"
       >
         <template #empty>
           <div class="empty-state">ไม่มีข้อมูลสินค้า</div>
@@ -81,6 +86,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { useMasterStore } from '@/stores/master'
@@ -94,38 +100,41 @@ const masterStore = useMasterStore()
 const confirm = useConfirm()
 const toast = useToast()
 
-const loading = ref(false)
 const search = ref('')
 const filterCategory = ref(null)
 
 const categoryOptions = computed(() => masterStore.categories)
-
-const filtered = computed(() =>
-  masterStore.products.filter(p => {
-    const q = search.value.toLowerCase()
-    const matchText = !q || p.sku.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
-    const matchCat = !filterCategory.value || p.categoryId === filterCategory.value
-    return matchText && matchCat
-  })
-)
+// Paginator's row offset, derived from the current server page.
+const first = computed(() => (masterStore.productListMeta.page - 1) * masterStore.productListMeta.limit)
 
 function getCatName(id) { return masterStore.getCategoryById(id)?.name || '-' }
 function getCatColor(id) { return masterStore.getCategoryById(id)?.color || '#888' }
 function getUnitAbbr(id) { return masterStore.getUnitById(id)?.abbr || '-' }
 
-async function fetchProducts() {
-  loading.value = true
-  try {
-    await masterStore.fetchProducts()
-  } catch {
-    toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 })
-  } finally {
-    loading.value = false
-  }
+// Fetch one server page with the current filters applied.
+// Note: the backend ignores name/SKU terms of 3 characters or fewer.
+function loadPage(page = 1, limit = masterStore.productListMeta.limit) {
+  return masterStore
+    .fetchProductList({
+      page,
+      limit,
+      title: search.value,
+      categoryIds: filterCategory.value ? [filterCategory.value] : [],
+    })
+    .catch(() => toast.add({ severity: 'error', summary: 'โหลดข้อมูลล้มเหลว', life: 3000 }))
 }
 
+function onPage(e) {
+  // e.page is 0-based; e.rows is the (possibly changed) page size.
+  loadPage(e.page + 1, e.rows)
+}
+
+// Search (debounced) and category filter both reset back to the first page.
+watchDebounced(search, () => loadPage(1), { debounce: 400 })
+watchDebounced(filterCategory, () => loadPage(1), { debounce: 0 })
+
 onMounted(() => {
-  fetchProducts()
+  loadPage(1)
   if (!masterStore.categories.length) masterStore.fetchCategories()
   if (!masterStore.units.length) masterStore.fetchUnits()
 })
@@ -140,6 +149,10 @@ function confirmDelete(product) {
       try {
         await masterStore.deleteProduct(product.id)
         toast.add({ severity: 'success', summary: 'ลบสำเร็จ', detail: product.name, life: 3000 })
+        // If the deleted row was the last one on this page, step back a page.
+        const m = masterStore.productListMeta
+        const page = masterStore.productList.length <= 1 && m.page > 1 ? m.page - 1 : m.page
+        await loadPage(page)
       } catch (e) {
         const msg = e.response?.data?.message || 'เกิดข้อผิดพลาด'
         toast.add({ severity: 'error', summary: msg, life: 4000 })

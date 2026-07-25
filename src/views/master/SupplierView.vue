@@ -21,6 +21,18 @@
         </template>
         <Column field="code" header="รหัส" style="width: 110px; font-family: monospace" sortable />
         <Column field="name" header="ชื่อบริษัท/ผู้จำหน่าย" sortable />
+        <Column field="manufacturerName" header="ชื่อผู้ผลิต" sortable>
+          <template #body="{ data }">{{ data.manufacturerName || '—' }}</template>
+        </Column>
+        <Column field="address" header="ที่อยู่">
+          <template #body="{ data }">{{ data.address || '—' }}</template>
+        </Column>
+        <Column field="telephone" header="เบอร์โทร" style="width: 130px">
+          <template #body="{ data }">{{ data.telephone || '—' }}</template>
+        </Column>
+        <Column field="email" header="อีเมล">
+          <template #body="{ data }">{{ data.email || '—' }}</template>
+        </Column>
         <Column header="จัดการ" style="width: 100px">
           <template #body="{ data }">
             <div class="action-btns">
@@ -49,7 +61,7 @@
           <InputText v-model="form.name" class="w-full" placeholder="ชื่อบริษัท/ผู้จำหน่าย" />
         </div>
         <div>
-          <label class="field-label">ชื่อผู้ผลิต (Manufacturer Name)</label>
+          <label class="field-label">ชื่อผู้ผลิต (Manufacturer Name) <span class="req">*</span></label>
           <InputText v-model="form.manufacturerName" class="w-full" placeholder="ชื่อผู้ผลิต" />
         </div>
         <div>
@@ -135,8 +147,8 @@ function openDialog(item = null) {
 }
 
 async function handleSave() {
-  if (!form.value.code || !form.value.name) {
-    toast.add({ severity: "warn", summary: "กรุณากรอกข้อมูลให้ครบ", life: 3000 });
+  if (!form.value.code?.trim() || !form.value.name?.trim() || !form.value.manufacturerName?.trim()) {
+    toast.add({ severity: "warn", summary: "กรุณากรอกรหัส ชื่อบริษัท และชื่อผู้ผลิตให้ครบ", life: 3000 });
     return;
   }
   saving.value = true;

@@ -14,6 +14,11 @@
           <div class="empty-state">ไม่มีข้อมูลแบรนด์</div>
         </template>
         <Column field="name" header="ชื่อแบรนด์" sortable />
+        <Column field="customer" header="ชื่อลูกค้า/บริษัท" sortable>
+          <template #body="{ data }">
+            {{ data.customer || '—' }}
+          </template>
+        </Column>
         <Column header="สถานะ" style="width:100px;">
           <template #body="{ data }">
             <span :class="['status-badge', data.isActive ? 'status-fg' : 'status-hold']">
@@ -40,7 +45,7 @@
           <InputText v-model="form.name" style="width:100%;" placeholder="เช่น Kandy" />
         </div>
         <div>
-          <label class="field-label">ชื่อลูกค้า/บริษัท</label>
+          <label class="field-label">ชื่อลูกค้า/บริษัท <span class="req">*</span></label>
           <InputText v-model="form.customer" style="width:100%;" placeholder="เช่น บริษัท เอซีเอ็มอี จำกัด" />
         </div>
         <div v-if="editing" class="active-row">
@@ -107,6 +112,10 @@ function openDialog(item = null) {
 async function handleSave() {
   if (!form.value.name?.trim()) {
     toast.add({ severity: 'warn', summary: 'กรุณากรอกชื่อแบรนด์', life: 3000 })
+    return
+  }
+  if (!form.value.customer?.trim()) {
+    toast.add({ severity: 'warn', summary: 'กรุณากรอกชื่อลูกค้า/บริษัท', life: 3000 })
     return
   }
   saving.value = true

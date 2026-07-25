@@ -320,7 +320,7 @@ async function doCreate() {
     const order = await productionStore.createOrder({
       formulaId: f.formulaId,
       mixSizeId: Number(f.mixsizeId),
-      machineId: f.machineId,
+      firstMachineId: f.machineId,
       prodNo: generateProdNo(),
       planDate: f.planDate,
     });
