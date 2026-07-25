@@ -58,7 +58,7 @@ const authStore = useAuthStore();
 const navGroups = computed(() => [
   {
     label: "ภาพรวม",
-    items: [{ display: true, to: "/dashboard", icon: "pi pi-home", label: "แดชบอร์ด" }],
+    items: [{ display: false, to: "/dashboard", icon: "pi pi-home", label: "แดชบอร์ด" }],
   },
   {
     label: "Master Data",
