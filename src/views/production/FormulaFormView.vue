@@ -357,6 +357,8 @@ const animalTypeOptions = [
 const packagingTypeOptions = [
   { label: "Can", value: "can" },
   { label: "Spout pouch", value: "spout_pouch" },
+  { label: "Pouch", value: "pouch" },
+  { label: "Sachet", value: "sachet" },
 ];
 const packagingSizeOptions = computed(() =>
   masterStore.packagingSizes.map((p) => ({
