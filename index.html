@@ -11,9 +11,15 @@
       IBM Plex Sans Thai carries both scripts, so Thai and Latin share one
       rhythm instead of falling back to two unrelated faces. JetBrains Mono is
       the companion for codes, SKUs and lot numbers.
+
+      Only Regular and Bold are fetched, which fixes how the in-between weights
+      resolve: 500 falls to Regular and 600 rises to Bold, so the UI has two
+      weights rather than four. The family does ship real 500 and 600 faces —
+      add `;500;600` below to bring the finer hierarchy back. (There is no 800;
+      the two places that ask for it render as Bold.)
     -->
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
   </head>
