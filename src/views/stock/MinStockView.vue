@@ -24,7 +24,7 @@
         <Column field="name" header="ชื่อสินค้า" />
         <Column header="ประเภท" style="width: 140px;">
           <template #body="{ data }">
-            <span class="cat-chip" :style="{ background: getCatColor(data.categoryId) + '22', color: getCatColor(data.categoryId) }">
+            <span class="cat-chip">
               {{ getCatName(data.categoryId) }}
             </span>
           </template>
@@ -104,7 +104,6 @@ const lowCount = computed(() =>
 )
 
 function getCatName(id) { return masterStore.getCategoryById(id)?.name || '-' }
-function getCatColor(id) { return masterStore.getCategoryById(id)?.color || '#888' }
 function isLow(p) { return p.minStock && stockStore.getAllQty(p.id) < p.minStock }
 
 function onEditComplete(e) {
@@ -126,7 +125,14 @@ function checkNow() {
 <style scoped>
 .search-wrap { position: relative; display: flex; align-items: center; }
 .search-wrap i { position: absolute; left: 0.75rem; z-index: 1; color: var(--gl-text-muted); }
-.cat-chip { padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+.cat-chip {
+  padding: 2px 8px;
+  border-radius: var(--gl-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--gl-bg);
+  color: var(--gl-text-muted);
+}
 .qty-low { color: var(--gl-red); font-weight: 700; }
 .qty-ok { color: var(--gl-navy); font-weight: 600; }
 .min-val { display: flex; align-items: center; justify-content: flex-end; gap: 6px; cursor: pointer; }

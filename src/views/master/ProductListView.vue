@@ -50,9 +50,7 @@
         <Column field="name" header="ชื่อสินค้า" sortable />
         <Column header="ประเภทสินค้า" style="width: 140px;">
           <template #body="{ data }">
-            <span class="cat-badge" :style="{ background: getCatColor(data.categoryId) + '22', color: getCatColor(data.categoryId) }">
-              {{ getCatName(data.categoryId) }}
-            </span>
+            <span class="cat-badge">{{ getCatName(data.categoryId) }}</span>
           </template>
         </Column>
         <Column header="หน่วย" style="width: 80px;">
@@ -108,7 +106,6 @@ const categoryOptions = computed(() => masterStore.categories)
 const first = computed(() => (masterStore.productListMeta.page - 1) * masterStore.productListMeta.limit)
 
 function getCatName(id) { return masterStore.getCategoryById(id)?.name || '-' }
-function getCatColor(id) { return masterStore.getCategoryById(id)?.color || '#888' }
 function getUnitAbbr(id) { return masterStore.getUnitById(id)?.abbr || '-' }
 
 // Fetch one server page with the current filters applied.
@@ -166,7 +163,14 @@ function confirmDelete(product) {
 <style scoped>
 .search-wrap { display: flex; align-items: center; position: relative; }
 .search-wrap i { position: absolute; left: 0.75rem; z-index: 1; color: var(--gl-text-muted); }
-.cat-badge { padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+.cat-badge {
+  padding: 2px 8px;
+  border-radius: var(--gl-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--gl-bg);
+  color: var(--gl-text-muted);
+}
 .action-btns { display: flex; gap: 4px; }
 .text-danger { color: var(--gl-red); font-weight: 600; }
 .empty-state { text-align: center; padding: 24px; color: var(--gl-text-muted); font-size: 14px; }

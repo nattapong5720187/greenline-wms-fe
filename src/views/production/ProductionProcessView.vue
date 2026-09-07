@@ -883,11 +883,11 @@ function downloadMixReport(type) {
   width: 34px; height: 34px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700;
-  border: 2px solid #e2e8f0; background: #f8fafc; color: #94a3b8; flex-shrink: 0;
+  border: 2px solid #e2e8f0; background: #f8fafc; color: var(--gl-text-subtle); flex-shrink: 0;
 }
 .step-circle.done { background: #10b981; border-color: #10b981; color: #fff; }
 .step-circle.active { background: #1e2a3b; border-color: #1e2a3b; color: #fff; }
-.step-label { font-size: 12px; font-weight: 500; margin-left: 8px; white-space: nowrap; color: #94a3b8; }
+.step-label { font-size: 12px; font-weight: 500; margin-left: 8px; white-space: nowrap; color: var(--gl-text-subtle); }
 .step-label.done { color: #10b981; }
 .step-label.active { color: #1e2a3b; font-weight: 700; }
 .step-line { flex: 1; height: 2px; background: #e2e8f0; margin: 0 16px; min-width: 24px; }
@@ -944,7 +944,7 @@ function downloadMixReport(type) {
 .mix-sheet tbody .no-col { background: #f8fafc; font-weight: 700; color: #475569; border-right: 1px solid #e2e8f0; }
 .cell-time-btn {
   display: flex; align-items: center; justify-content: center; gap: 5px;
-  width: 100%; padding: 13px 8px; cursor: pointer; font-size: 13px; color: #94a3b8; user-select: none; transition: background 0.12s;
+  width: 100%; padding: 13px 8px; cursor: pointer; font-size: 13px; color: var(--gl-text-subtle); user-select: none; transition: background 0.12s;
 }
 .cell-time-btn:hover { background: #f8fafc; }
 .cell-time-btn .pi-clock { font-size: 11px; }
@@ -955,7 +955,7 @@ function downloadMixReport(type) {
 .cell-time-btn.has-value .pi-pencil { font-size: 10px; opacity: 0.55; }
 .cell-temp-btn {
   display: flex; align-items: baseline; justify-content: center; gap: 3px;
-  width: 100%; padding: 13px 8px; cursor: pointer; font-size: 13px; color: #94a3b8; user-select: none; transition: background 0.12s;
+  width: 100%; padding: 13px 8px; cursor: pointer; font-size: 13px; color: var(--gl-text-subtle); user-select: none; transition: background 0.12s;
 }
 .cell-temp-btn:hover { background: #f8fafc; }
 .cell-temp-btn .pi { font-size: 10px; align-self: center; }
@@ -1005,7 +1005,7 @@ function downloadMixReport(type) {
   font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 7px; transition: background 0.12s;
 }
 .td-save-btn:hover { background: #0f172a; }
-.td-divider { font-size: 11px; color: #94a3b8; margin: 14px 0 10px; display: flex; align-items: center; gap: 8px; }
+.td-divider { font-size: 11px; color: var(--gl-text-subtle); margin: 14px 0 10px; display: flex; align-items: center; gap: 8px; }
 .td-divider::before, .td-divider::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
 .td-manual { display: flex; gap: 8px; align-items: center; }
 .td-time-input {
@@ -1031,7 +1031,7 @@ function downloadMixReport(type) {
   background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; min-height: 46px; box-sizing: border-box;
 }
 .np-value { font-size: 26px; font-weight: 800; color: #1e2a3b; font-family: 'Courier New', monospace; line-height: 1.1; }
-.np-unit { font-size: 13px; font-weight: 700; color: #94a3b8; }
+.np-unit { font-size: 13px; font-weight: 700; color: var(--gl-text-subtle); }
 .np-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
 .np-key {
   height: 44px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; cursor: pointer;

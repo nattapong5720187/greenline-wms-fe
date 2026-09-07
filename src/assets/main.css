@@ -23,9 +23,9 @@
   --gl-bg: #f5f7fa;
   --gl-border: #e2e8f0;
   --gl-border-strong: #cbd5e1;
-  --gl-text: #1e293b;
-  --gl-text-muted: #64748b;
-  --gl-text-subtle: #94a3b8;
+  --gl-text: #1e293b; /* 14.6:1 on white */
+  --gl-text-muted: #475569; /* 7.6:1 — carries most secondary text, at 11–12px */
+  --gl-text-subtle: #64748b; /* 4.8:1 — the lightest text allowed to be read */
   --gl-hover: #f8fafc;
 
   /* Semantic */
@@ -137,7 +137,7 @@ body {
 
 .p-datatable .p-datatable-tbody > tr > td {
   padding: 11px 14px !important;
-  font-size: 13px;
+  font-size: 13px !important;
   border-color: var(--gl-border) !important;
 }
 
