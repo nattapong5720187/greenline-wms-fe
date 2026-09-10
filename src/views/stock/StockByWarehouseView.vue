@@ -5,6 +5,7 @@
         <div class="page-title">สต๊อกแยกคลัง</div>
         <div class="page-subtitle">
           จำนวนคงเหลือของแต่ละสินค้าในคลังที่เลือก — รวมทุก Lot ของสินค้านั้นเข้าด้วยกัน
+          และไม่แสดงสินค้าที่หมดแล้ว
         </div>
       </div>
       <Button
@@ -60,6 +61,14 @@
           :options="productTypes"
           placeholder="ทุกประเภท"
           showClear
+          style="width: 170px"
+        />
+
+        <Dropdown
+          v-model="stockState"
+          :options="STOCK_STATES"
+          optionLabel="label"
+          optionValue="value"
           style="width: 170px"
         />
 
@@ -131,7 +140,7 @@
         <Column field="name" header="ชื่อสินค้า" sortable>
           <template #body="{ data }">
             <div class="prod-name">{{ data.name }}</div>
-            <div v-if="data.hasLot" class="prod-sub">
+            <div v-if="data.hasLot && data.lotCount > 0" class="prod-sub">
               <i class="pi pi-tags" /> {{ data.lotCount }} Lot
             </div>
           </template>
@@ -190,6 +199,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import { useToast } from 'primevue/usetoast'
+import { useRoute } from 'vue-router'
 import { useMasterStore } from '@/stores/master'
 import { useStockStore } from '@/stores/stock'
 import Button from 'primevue/button'
@@ -199,11 +209,24 @@ import ToggleButton from 'primevue/togglebutton'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 
+const route = useRoute()
 const toast = useToast()
 const masterStore = useMasterStore()
 const stockStore = useStockStore()
 
+/*
+ * Which products the table lists, judged on the on-hand total. A warehouse
+ * screen is a list of what is there, so emptied products are left out until
+ * someone goes looking for them.
+ */
+const STOCK_STATES = [
+  { label: 'ที่มีของ', value: 'IN_STOCK' },
+  { label: 'ที่หมดแล้ว', value: 'DEPLETED' },
+  { label: 'ทั้งหมด', value: 'ALL' },
+]
+
 const search = ref('')
+const stockState = ref('IN_STOCK')
 const filterCategory = ref(null)
 const filterProductType = ref(null)
 const lowStockOnly = ref(false)
@@ -225,7 +248,12 @@ const productTypes = computed(() =>
 )
 
 const hasFilters = computed(
-  () => !!search.value || !!filterCategory.value || !!filterProductType.value || lowStockOnly.value,
+  () =>
+    !!search.value ||
+    !!filterCategory.value ||
+    !!filterProductType.value ||
+    lowStockOnly.value ||
+    stockState.value !== 'IN_STOCK',
 )
 
 async function load() {
@@ -239,6 +267,7 @@ async function load() {
       categoryId: filterCategory.value ?? undefined,
       productType: filterProductType.value ?? undefined,
       lowStockOnly: lowStockOnly.value || undefined,
+      stockState: stockState.value,
       sortBy: sortField.value,
       sortOrder: sortOrder.value === -1 ? 'DESC' : 'ASC',
       page: page.value,
@@ -271,6 +300,7 @@ function resetFilters() {
   filterCategory.value = null
   filterProductType.value = null
   lowStockOnly.value = false
+  stockState.value = 'IN_STOCK'
   reload()
 }
 
@@ -288,7 +318,7 @@ function onSort(event) {
 
 // Typing hits the server, so wait for a pause rather than firing per keystroke.
 watchDebounced(search, reload, { debounce: 350 })
-watch([filterCategory, filterProductType, lowStockOnly], reload)
+watch([filterCategory, filterProductType, lowStockOnly, stockState], reload)
 
 function formatQty(value) {
   const n = Number(value || 0)
@@ -311,7 +341,11 @@ onMounted(async () => {
   if (!masterStore.products.length) masterStore.fetchProducts()
   if (!masterStore.warehouses.length) await masterStore.fetchWarehouses()
   if (activeWh.value === null && masterStore.warehouses.length) {
-    activeWh.value = masterStore.warehouses[0].id
+    // "ดูสต๊อก" on a warehouse card names the warehouse it came from; without
+    // one, open the first tab.
+    const asked = Number(route.query.warehouseId)
+    const known = masterStore.warehouses.some((w) => w.id === asked)
+    activeWh.value = known ? asked : masterStore.warehouses[0].id
   }
   load()
 })

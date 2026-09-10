@@ -23,25 +23,33 @@
         <div class="wdc-body">
           <div class="wdc-stats">
             <div class="wdc-stat">
-              <span class="wdcs-val">{{ stockStore.getStockByWarehouse(wh.id).length }}</span>
-              <span class="wdcs-lbl">SKU</span>
+              <span class="wdcs-val">{{ formatNumber(wh.countSkus) }}</span>
+              <span class="wdcs-lbl">SKU ที่มีของ</span>
             </div>
             <div class="wdc-stat">
-              <span class="wdcs-val">{{ totalQty(wh.id) }}</span>
-              <span class="wdcs-lbl">จำนวนรวม</span>
+              <span :class="['wdcs-val', { 'wdcs-alert': wh.countLowStock > 0 }]">
+                {{ formatNumber(wh.countLowStock) }}
+              </span>
+              <span class="wdcs-lbl">ต่ำกว่าขั้นต่ำ</span>
             </div>
             <div class="wdc-stat">
-              <span class="wdcs-val" :style="{ color: holdCount(wh.id) > 0 ? 'var(--gl-red)' : 'inherit' }">{{
-                holdCount(wh.id)
-              }}</span>
-              <span class="wdcs-lbl">Hold</span>
+              <span :class="['wdcs-val', { 'wdcs-warn': wh.countNearExpiry > 0 }]">
+                {{ formatNumber(wh.countNearExpiry) }}
+              </span>
+              <span class="wdcs-lbl">ใกล้หมดอายุ</span>
             </div>
           </div>
         </div>
         <div class="wdc-footer">
           <Button icon="pi pi-pencil" label="แก้ไข" text size="small" @click="openDialog(wh)" />
           <Button icon="pi pi-trash" label="ลบ" text size="small" severity="danger" @click="confirmDelete(wh)" />
-          <Button icon="pi pi-eye" label="ดูสต๊อก" text size="small" @click="$router.push('/stock/by-warehouse')" />
+            <Button
+              icon="pi pi-eye"
+              label="ดูสต๊อก"
+              text
+              size="small"
+              @click="$router.push({ path: '/stock/by-warehouse', query: { warehouseId: wh.id } })"
+            />
         </div>
       </div>
     </div>
@@ -77,7 +85,6 @@
 
 <script setup>
 import { useMasterStore } from "@/stores/master";
-import { useStockStore } from "@/stores/stock";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import Dropdown from "primevue/dropdown";
@@ -87,7 +94,6 @@ import { useToast } from "primevue/usetoast";
 import { onMounted, ref } from "vue";
 
 const masterStore = useMasterStore();
-const stockStore = useStockStore();
 const confirm = useConfirm();
 const toast = useToast();
 
@@ -132,14 +138,8 @@ function whTypeColor(t) {
   );
 }
 
-function totalQty(whId) {
-  return stockStore
-    .getStockByWarehouse(whId)
-    .reduce((sum, s) => sum + s.qty, 0)
-    .toLocaleString();
-}
-function holdCount(whId) {
-  return stockStore.holdItems.filter((h) => h.warehouseId === whId && h.status === "hold").length;
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString("th-TH", { maximumFractionDigits: 3 });
 }
 
 async function fetchWarehouses() {
@@ -261,17 +261,23 @@ function confirmDelete(item) {
   padding: 16px 20px;
 }
 
+.wdcs-alert {
+  color: var(--gl-red);
+}
+.wdcs-warn {
+  color: var(--gl-warning);
+}
 .wdc-stats {
-  display: flex;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 .wdc-stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
   background: var(--gl-bg);
-  border-radius: 8px;
+  border-radius: var(--gl-radius-sm);
   padding: 10px;
 }
 .wdcs-val {
@@ -279,6 +285,7 @@ function confirmDelete(item) {
   font-weight: 700;
   color: var(--gl-navy);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 .wdcs-lbl {
   font-size: 11px;
