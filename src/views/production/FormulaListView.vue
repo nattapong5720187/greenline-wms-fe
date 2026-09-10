@@ -16,6 +16,8 @@
           <i class="pi pi-search" />
           <InputText v-model="search" placeholder="ค้นหารหัส / ชื่อสูตร..." style="padding-left:2.2rem; width:280px;" />
         </span>
+        <Dropdown v-model="filterType" :options="typeOptions" optionLabel="label" optionValue="value"
+          placeholder="ทุกประเภทสูตร" showClear style="width:170px;" />
         <Dropdown v-model="filterActive" :options="activeOptions" optionLabel="label" optionValue="value"
           placeholder="ทุกสถานะ" showClear style="width:150px;" />
       </div>
@@ -27,7 +29,22 @@
           <div class="empty-state">ไม่มีข้อมูลสูตร</div>
         </template>
         <Column field="code" header="รหัส" style="width:120px; font-family:monospace; font-size:12px;" sortable />
-        <Column field="name" header="ชื่อสูตร" sortable />
+        <Column field="name" header="ชื่อสูตร" sortable>
+          <template #body="{ data }">
+            <div>{{ data.name }}</div>
+            <div v-if="data.remark" class="remark" v-tooltip.top="data.remark">
+              <i class="pi pi-comment" /> {{ data.remark }}
+            </div>
+          </template>
+        </Column>
+        <Column header="ประเภทสูตร" style="width:130px;">
+          <template #body="{ data }">
+            <span v-if="data.type" :class="['status-badge', data.type === 'SAUCE' ? 'type-sauce' : 'type-semi']">
+              {{ typeLabel(data.type) }}
+            </span>
+            <span v-else class="muted">— ยังไม่ระบุ</span>
+          </template>
+        </Column>
         <Column header="ประเภทอาหาร" style="width:120px;">
           <template #body="{ data }">{{ animalLabel(data.animalType) }}</template>
         </Column>
@@ -88,6 +105,19 @@ onMounted(fetchFormulas)
 
 const search = ref('')
 const filterActive = ref(null)
+const filterType = ref(null)
+
+// SAUCE / SEMI — the half of a production run a formula describes. Formulas
+// created before the split carry no type, so the filter has to tolerate null.
+const TYPE_LABELS = { SAUCE: 'ซอส', SEMI: 'แปรรูป' }
+const typeOptions = [
+  { label: 'ซอส (SAUCE)', value: 'SAUCE' },
+  { label: 'แปรรูป (SEMI)', value: 'SEMI' },
+  { label: 'ยังไม่ระบุประเภท', value: 'NONE' },
+]
+function typeLabel(t) {
+  return TYPE_LABELS[t] || '—'
+}
 
 const activeOptions = [
   { label: 'ใช้งาน', value: true },
@@ -99,7 +129,10 @@ const filtered = computed(() =>
     const q = search.value.toLowerCase()
     const matchText = !q || (f.code || '').toLowerCase().includes(q) || f.name.toLowerCase().includes(q)
     const matchActive = filterActive.value === null || f.active === filterActive.value
-    return matchText && matchActive
+    const matchType =
+      filterType.value === null ||
+      (filterType.value === 'NONE' ? !f.type : f.type === filterType.value)
+    return matchText && matchActive && matchType
   })
 )
 
@@ -131,6 +164,25 @@ function confirmDelete(formula) {
 </script>
 
 <style scoped>
+.type-sauce {
+  background: #fef3c7;
+  color: #92400e;
+}
+.type-semi {
+  background: #dcfce7;
+  color: #166534;
+}
+/* The note is secondary to the name, and long notes must not stretch the row. */
+.remark {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--gl-text-subtle);
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .search-wrap { display: flex; align-items: center; position: relative; }
 .search-wrap i { position: absolute; left: 0.75rem; z-index: 1; color: var(--gl-text-muted); }
 .action-btns { display: flex; gap: 4px; }

@@ -2,11 +2,21 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiGetFormulas, apiGetFormula, apiCreateFormula, apiUpdateFormula, apiDeleteFormula } from '@/api/formulas'
 import { apiGetProductionOrders, apiGetProductionOrder, apiCreateProductionOrder, apiUpdateProductionOrder, apiDeleteProductionOrder, apiReplaceMixRecords } from '@/api/productionOrders'
-import { useStockStore } from './stock'
-import { useMasterStore } from './master'
 
-// Map a backend production order to the view-model the (still mock-shaped) views
-// read. `mixsizeId` is stringified to line up with a formula VM's mixSize `key`.
+/*
+ * Map a backend production order to the view-model the views read.
+ *
+ * An order pairs TWO formulas, and which is which decides the whole screen:
+ *   sauce (SAUCE) → stage 1 → "ผสม Premix → ซอส"     → Homo mixer
+ *   semi  (SEMI)  → stage 2 → "ผสมซอส + เนื้อแปรรูป" → Ribbon mixer
+ * That is also why `sauceMachineId` is the stage-1 machine and `semiMachineId`
+ * the stage-2 one — the old `first_machine_id`/`second_machine_id` were renamed
+ * to the halves they always belonged to, not swapped.
+ *
+ * Only the semi side is mandatory on the API, so every sauce field is nullable.
+ * Mix size ids are stringified as `…MixsizeKey` to line up with a formula VM's
+ * mixSize `key`.
+ */
 function toOrderVM(o) {
   // The detail read returns mix records split by stage; flatten them into one
   // list (each record carries its own `stage`) for the views that iterate all
@@ -16,14 +26,20 @@ function toOrderVM(o) {
   return {
     id: o.id,
     docNo: o.prodNo,
-    formulaId: o.formulaId,
-    mixsizeId: String(o.mixSizeId),
-    mixSizeId: o.mixSizeId,
-    // Stage-1 machine = Homo (ซอส), stage-2 = Ribbon (เนื้อ). `machineId` kept as
-    // an alias to the primary machine for older readers.
-    firstMachineId: o.firstMachineId ?? null,
-    secondMachineId: o.secondMachineId ?? null,
-    machineId: o.firstMachineId ?? null,
+    // ── sauce half (stage 1) ──
+    sauceFormulaId: o.sauceFormulaId ?? null,
+    sauceMixSizeId: o.sauceMixSizeId ?? null,
+    sauceMixsizeKey: o.sauceMixSizeId == null ? null : String(o.sauceMixSizeId),
+    sauceMachineId: o.sauceMachineId ?? null,
+    sauceFormula: o.sauceFormula ? toFormulaVM(o.sauceFormula) : null,
+    sauceMixSize: o.sauceMixSize ?? null,
+    // ── semi half (stage 2) ──
+    semiFormulaId: o.semiFormulaId ?? null,
+    semiMixSizeId: o.semiMixSizeId ?? null,
+    semiMixsizeKey: o.semiMixSizeId == null ? null : String(o.semiMixSizeId),
+    semiMachineId: o.semiMachineId ?? null,
+    semiFormula: o.semiFormula ? toFormulaVM(o.semiFormula) : null,
+    semiMixSize: o.semiMixSize ?? null,
     status: o.status, // ACCEPT | MIXING | SUCCESS | CANCELED
     planDate: o.planDate,
     createdAt: o.createdAt,
@@ -72,6 +88,9 @@ function toFormulaVM(f) {
     code: f.formulaCode || '',
     name: f.name,
     productCode: f.productCode || '',
+    // SEMI | SAUCE, or null for formulas drafted before the split existed.
+    type: f.type || null,
+    remark: f.remark || '',
     active: f.status !== false,
     animalType: FOOD_TYPE_IN[f.foodType] || null,
     packagingType: PACK_TYPE_IN[f.packagingType] || null,
@@ -116,6 +135,10 @@ function toFormulaPayload(vm) {
   }
   if (vm.code) payload.formulaCode = vm.code
   if (vm.productCode) payload.productCode = vm.productCode
+  if (vm.type) payload.type = vm.type
+  // The DTO validates `remark` with @IsString, so clearing the note sends an
+  // empty string — null would be rejected.
+  if (vm.remark !== undefined) payload.remark = vm.remark || ''
   return payload
 }
 
@@ -163,52 +186,6 @@ export const useProductionStore = defineStore('production', () => {
     formulas.value = formulas.value.filter(f => f.id !== id)
   }
 
-  function matchLots(formulaId, batches) {
-    const stockStore = useStockStore()
-    const formula = getFormulaById(formulaId)
-    if (!formula) return []
-    return formula.ingredients.map(ing => {
-      const qtyRequired = ing.qtyPerBatch * batches
-      const fifoLots = stockStore.getLotsForProduct(ing.productId)
-      let remaining = qtyRequired
-      const lotAssignments = []
-      for (const lot of fifoLots) {
-        if (remaining <= 0) break
-        const take = Math.min(lot.remaining, remaining)
-        if (take > 0) {
-          lotAssignments.push({ lotId: lot.id, lotNo: lot.lotNo, qty: take })
-          remaining -= take
-        }
-      }
-      return { productId: ing.productId, qtyRequired, lotAssignments }
-    })
-  }
-
-  // Build the raw-material list for one mix of the selected mix size, then
-  // FIFO-match available lots for each item.
-  function matchLotsForMixsize(formulaId, mixsizeId) {
-    const stockStore = useStockStore()
-    const formula = getFormulaById(formulaId)
-    if (!formula) return []
-    const bom = formula.bomByMixsize?.[mixsizeId]
-    const items = bom ? [...(bom.premix || []), ...(bom.ingredients || [])] : (formula.ingredients || [])
-    return items.map(ing => {
-      const qtyRequired = ing.qtyPerBatch
-      const fifoLots = stockStore.getLotsForProduct(ing.productId)
-      let remaining = qtyRequired
-      const lotAssignments = []
-      for (const lot of fifoLots) {
-        if (remaining <= 0) break
-        const take = Math.min(lot.remaining, remaining)
-        if (take > 0) {
-          lotAssignments.push({ lotId: lot.id, lotNo: lot.lotNo, qty: take })
-          remaining -= take
-        }
-      }
-      return { productId: ing.productId, qtyRequired, lotAssignments }
-    })
-  }
-
   // ---- Production orders (API) ----
   async function fetchOrders(params = {}) {
     ordersLoading.value = true
@@ -234,7 +211,9 @@ export const useProductionStore = defineStore('production', () => {
     return vm
   }
 
-  // payload: { formulaId, mixSizeId, machineId, prodNo, planDate }
+  // payload: { semiFormulaId, semiMixSizeId, semiMachineId, sauceFormulaId,
+  //            sauceMixSizeId, sauceMachineId, prodNo, planDate } — the sauce
+  // side is indivisible: formula and mix size go together or neither is sent.
   async function createOrder(payload) {
     const { data } = await apiCreateProductionOrder(payload)
     const vm = toOrderVM(data)
@@ -263,94 +242,6 @@ export const useProductionStore = defineStore('production', () => {
     return vm
   }
 
-  // Re-match lots after the user edits / adds / removes raw materials in step 1.
-  function setIngredients(orderId, list) {
-    const order = orders.value.find(o => o.id === orderId)
-    if (!order) return
-    const stockStore = useStockStore()
-    order.ingredients = list
-      .filter(it => it.productId && it.qtyRequired > 0)
-      .map(it => {
-        const fifoLots = stockStore.getLotsForProduct(it.productId)
-        let remaining = it.qtyRequired
-        const lotAssignments = []
-        for (const lot of fifoLots) {
-          if (remaining <= 0) break
-          const take = Math.min(lot.remaining, remaining)
-          if (take > 0) {
-            lotAssignments.push({ lotId: lot.id, lotNo: lot.lotNo, qty: take })
-            remaining -= take
-          }
-        }
-        return { productId: it.productId, qtyRequired: it.qtyRequired, lotAssignments }
-      })
-  }
-
-  // Step 1 → 2: confirm raw materials, deduct stock, move to ผสม (Mix).
-  function startProcessing(orderId) {
-    const order = orders.value.find(o => o.id === orderId)
-    if (!order || order.status !== 'confirmed') return
-    const stockStore = useStockStore()
-    const masterStore = useMasterStore()
-    order.ingredients.forEach(ing => {
-      const product = masterStore.getProductById(ing.productId)
-      ing.lotAssignments.forEach(la => {
-        const lot = stockStore.lots.find(l => l.id === la.lotId)
-        const whId = lot?.warehouseId || product?.warehouseId || 'WH01'
-        stockStore.deductStock(ing.productId, whId, la.qty, la.lotId)
-      })
-      const covered = ing.lotAssignments.reduce((s, la) => s + la.qty, 0)
-      const uncovered = ing.qtyRequired - covered
-      if (uncovered > 0 && product?.warehouseId) {
-        stockStore.deductStock(ing.productId, product.warehouseId, uncovered, null)
-      }
-    })
-    order.status = 'mixing'
-    order.mixStartAt = new Date().toISOString()
-  }
-
-  // Step 2 → 3: record the two mixer logs (sauce + meat), create the Semi lot,
-  // move to รับเข้า Semi (Receive).
-  function completeMixing(orderId, data) {
-    const order = orders.value.find(o => o.id === orderId)
-    if (!order || order.status !== 'mixing') return
-    const formula = getFormulaById(order.formulaId)
-    const semiQty = formula ? (formula.outputQtyPerBatch || 0) * order.plannedBatches : 0
-    const d = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-    const lotNo = `SEMI-${d}-${String(orders.value.length).padStart(3, '0')}`
-    order.mixData = data
-    order.semiLot = {
-      lotNo,
-      productId: formula?.semiProductId || null,
-      qty: semiQty,
-      warehouseId: 'WH02',
-      expiryDate: null,
-    }
-    order.status = 'receiving'
-    order.mixedAt = new Date().toISOString()
-    order.packedAt = new Date().toISOString()
-  }
-
-  // Step 5 → done: receive the Semi product into the warehouse.
-  function receiveSemi(orderId) {
-    const order = orders.value.find(o => o.id === orderId)
-    if (!order || order.status !== 'receiving' || !order.semiLot) return
-    const stockStore = useStockStore()
-    const formula = getFormulaById(order.formulaId)
-    const semiProductId = formula?.semiProductId || order.semiLot.productId
-    if (semiProductId) {
-      stockStore.addStock(semiProductId, 'WH02', order.semiLot.qty, 'Semi', {
-        lotNo: order.semiLot.lotNo, productId: semiProductId,
-        receiveDate: new Date().toISOString().split('T')[0],
-        expiryDate: order.semiLot.expiryDate || null, warehouseId: 'WH02', status: 'active',
-      })
-    }
-    order.actualOutput = order.semiLot.qty
-    order.status = 'done'
-    order.receivedAt = new Date().toISOString()
-    order.completedAt = new Date().toISOString()
-  }
-
   // Cancel = backend soft-delete; only orders still in ACCEPT can be cancelled.
   async function cancelOrder(orderId) {
     await apiDeleteProductionOrder(orderId)
@@ -369,7 +260,6 @@ export const useProductionStore = defineStore('production', () => {
     formulas, formulasLoading, orders, ordersLoading, ordersMeta, counts,
     getFormulaById, fetchFormulas, fetchFormula, addFormula, updateFormula, deleteFormula,
     fetchOrders, fetchOrder, getOrderById, createOrder, updateOrder, cancelOrder,
-    saveMixRecords, setIngredients, startProcessing, completeMixing, receiveSemi,
-    matchLots, matchLotsForMixsize,
+    saveMixRecords,
   }
 })

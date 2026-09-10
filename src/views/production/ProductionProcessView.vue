@@ -9,7 +9,10 @@
         <Button icon="pi pi-arrow-left" text rounded @click="router.push('/production/orders')" />
         <div>
           <div class="page-title">{{ order.docNo }}</div>
-          <div class="page-subtitle">{{ formulaName }} · {{ machineName }} · {{ formatDate(order.planDate) }}</div>
+          <div class="page-subtitle">
+            <span v-if="sauceFormula">ซอส: {{ sauceFormula.name }} · </span>
+            แปรรูป: {{ semiFormula?.name || "—" }} · {{ formatDate(order.planDate) }}
+          </div>
         </div>
       </div>
       <span :class="['po-badge', statusClass(order.status)]">{{ statusLabel(order.status) }}</span>
@@ -41,7 +44,12 @@
     <div v-if="order.status === 'ACCEPT'" class="page-card">
       <div class="section-title">ส่วนผสมตามสูตร (บันทึกไว้ ณ ตอนสร้างใบสั่งผลิต)</div>
 
-      <div class="tbl-head"><span class="tbl-title"><i class="pi pi-bolt" /> Premix</span></div>
+      <div class="tbl-head">
+        <span class="tbl-title"><i class="pi pi-bolt" /> Premix</span>
+        <span class="tbl-from">
+          จากสูตรซอส: <b>{{ sauceFormula?.name || "— ไม่มีสูตรซอสในใบสั่งผลิตนี้" }}</b>
+        </span>
+      </div>
       <table class="edit-tbl">
         <thead><tr><th style="width: 40px">#</th><th>วัตถุดิบ</th><th style="width: 200px; text-align: right">ปริมาณ</th></tr></thead>
         <tbody>
@@ -54,7 +62,10 @@
         </tbody>
       </table>
 
-      <div class="tbl-head" style="margin-top: 22px"><span class="tbl-title"><i class="pi pi-box" /> วัตถุดิบ (Ingredient)</span></div>
+      <div class="tbl-head" style="margin-top: 22px">
+        <span class="tbl-title"><i class="pi pi-box" /> วัตถุดิบ (Ingredient)</span>
+        <span class="tbl-from">จากสูตรแปรรูป: <b>{{ semiFormula?.name || "—" }}</b></span>
+      </div>
       <table class="edit-tbl">
         <thead><tr><th style="width: 40px">#</th><th>วัตถุดิบ</th><th style="width: 200px; text-align: right">ปริมาณ</th></tr></thead>
         <tbody>
@@ -78,11 +89,19 @@
       <div class="section-title">ขั้นตอนผสม</div>
       <div class="substep-tabs">
         <button :class="['substep', mixSub === 'sauce' ? 'on' : '']" @click="mixSub = 'sauce'">
-          <span class="substep-no">1</span> ผสม Premix → ซอส
+          <span class="substep-no">1</span>
+          <span class="substep-text">
+            ผสม Premix → ซอส
+            <small>{{ sauceFormula?.name || "ไม่มีสูตรซอส" }}</small>
+          </span>
         </button>
         <div class="substep-arrow"><i class="pi pi-angle-right" /></div>
         <button :class="['substep', mixSub === 'meat' ? 'on' : '']" @click="mixSub = 'meat'">
-          <span class="substep-no">2</span> ผสมซอส + เนื้อแปรรูป
+          <span class="substep-no">2</span>
+          <span class="substep-text">
+            ผสมซอส + เนื้อแปรรูป
+            <small>{{ semiFormula?.name || "—" }}</small>
+          </span>
         </button>
       </div>
 
@@ -337,13 +356,28 @@ const loading = ref(true);
 const busy = ref(false);
 
 const order = computed(() => productionStore.getOrderById(route.params.id));
-const formula = computed(() => (order.value ? productionStore.getFormulaById(order.value.formulaId) : null));
-const formulaName = computed(() => formula.value?.name || "—");
-const machineName = computed(() => {
-  const m = masterStore.getMachineById(order.value?.machineId);
-  return m ? `${m.name}${m.code ? ` (${m.code})` : ""}` : "—";
-});
 
+/*
+ * The two halves of the order are the two tabs of this screen:
+ *   sauce formula (SAUCE) → tab 1 "ผสม Premix → ซอส"     → Homo mixer  → stage 1
+ *   semi formula  (SEMI)  → tab 2 "ผสมซอส + เนื้อแปรรูป" → Ribbon mixer → stage 2
+ * The order embeds both formulas, so prefer that copy and fall back to the
+ * store's (a formula fetched by id) when a read did not carry it.
+ */
+const sauceFormula = computed(
+  () => order.value?.sauceFormula || productionStore.getFormulaById(order.value?.sauceFormulaId) || null,
+);
+const semiFormula = computed(
+  () => order.value?.semiFormula || productionStore.getFormulaById(order.value?.semiFormulaId) || null,
+);
+
+/*
+ * Which half an ingredient line belongs to is read off `stepType`, the value the
+ * order snapshotted from the formula: a sauce formula contributes PREMIX lines,
+ * a semi formula INGREDIENT lines. The snapshot is denormalized and carries no
+ * formula id, so this is the only link back — and it holds because the formula
+ * editor only lets a SAUCE formula hold premix and a SEMI formula ingredients.
+ */
 const premixRows = computed(() => (order.value?.ingredients || []).filter((i) => i.stepType === "PREMIX"));
 const ingredientRows = computed(() => (order.value?.ingredients || []).filter((i) => i.stepType !== "PREMIX"));
 
@@ -472,19 +506,19 @@ function initMix() {
   const stage1 = order.value.firstStageMixRecords || [];
   const stage2 = order.value.secondStageMixRecords || [];
 
-  sauce.name = formula.value?.name ?? "";
-  sauce.code = formula.value?.code ?? "";
+  sauce.name = sauceFormula.value?.name ?? "";
+  sauce.code = sauceFormula.value?.code ?? "";
   sauce.date = dateFromRecords(stage1) || todayStr();
-  sauce.mixSize = premixIngs.reduce((sum, i) => sum + Number(i.quantity), 0);
-  sauce.machineId = order.value.firstMachineId ?? homoMixerOptions.value[0]?.value ?? null;
+  sauce.mixSize = order.value.sauceMixSize?.sizeKg ?? premixIngs.reduce((sum, i) => sum + Number(i.quantity), 0);
+  sauce.machineId = order.value.sauceMachineId ?? homoMixerOptions.value[0]?.value ?? null;
   sauce.columns = sCols;
   sauce.rows = rowsFromStage(sCols, stage1, false);
 
-  meat.name = formula.value?.name ?? "";
-  meat.code = formula.value?.code ?? "";
+  meat.name = semiFormula.value?.name ?? "";
+  meat.code = semiFormula.value?.code ?? "";
   meat.date = dateFromRecords(stage2) || todayStr();
-  meat.mixSize = 0;
-  meat.machineId = order.value.secondMachineId ?? ribbonMixerOptions.value[0]?.value ?? null;
+  meat.mixSize = order.value.semiMixSize?.sizeKg ?? 0;
+  meat.machineId = order.value.semiMachineId ?? ribbonMixerOptions.value[0]?.value ?? null;
   meat.columns = mCols;
   meat.rows = rowsFromStage(mCols, stage2, true);
   mixSub.value = "sauce";
@@ -793,8 +827,11 @@ const MIX_TITLE = {
 // chosen machine; in SUCCESS we fall back to the first machine of that type.
 function reportMachineName(type, machineId) {
   if (machineId) return machineLabel(machineId);
+  // The order's own machine for that half, then any machine of the right type.
+  const ordered = type === "meat" ? order.value?.semiMachineId : order.value?.sauceMachineId;
+  if (ordered) return machineLabel(ordered);
   const opts = type === "meat" ? ribbonMixerOptions.value : homoMixerOptions.value;
-  return opts[0]?.label || machineLabel(order.value?.machineId);
+  return opts[0]?.label || "—";
 }
 
 // Normalize the live editing sheet (MIXING step) into the report shape.
@@ -848,10 +885,13 @@ function reportFromRecords(type) {
     isMeat: type === "meat",
     title: MIX_TITLE[type],
     docNo: order.value?.docNo || "",
-    formName: formula.value?.name || "",
-    code: formula.value?.code || "",
+    // Each report belongs to its own half's formula.
+    formName: (type === "meat" ? semiFormula.value : sauceFormula.value)?.name || "",
+    code: (type === "meat" ? semiFormula.value : sauceFormula.value)?.code || "",
     date: firstRec?.startedAt ? String(firstRec.startedAt).slice(0, 10) : order.value?.planDate || "",
-    mixSize: type === "meat" ? "" : ings.reduce((s, i) => s + Number(i.quantity || 0), 0),
+    mixSize:
+      (type === "meat" ? order.value?.semiMixSize?.sizeKg : order.value?.sauceMixSize?.sizeKg) ??
+      (type === "meat" ? "" : ings.reduce((s, i) => s + Number(i.quantity || 0), 0)),
     machineName: reportMachineName(type, null),
     columns: ings.map((i) => ({ label: i.materialName, target: Number(i.quantity), unit: i.unit })),
     rows,
@@ -872,6 +912,25 @@ function downloadMixReport(type) {
 </script>
 
 <style scoped>
+/* The tab is the formula: naming it here is what tells the operator which recipe
+   the sheet below belongs to. */
+.substep-text {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.3;
+}
+.substep-text small {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+.tbl-from {
+  font-size: 12px;
+  color: var(--gl-text-subtle);
+  font-weight: 400;
+}
+
 .stepper-card {
   display: flex; align-items: center; background: #fff; border-radius: 12px;
   padding: 20px 28px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); margin-bottom: 16px;

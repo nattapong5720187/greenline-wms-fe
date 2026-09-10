@@ -64,13 +64,26 @@
           <div class="empty-state">ไม่มีข้อมูลใบสั่งผลิต</div>
         </template>
         <Column field="docNo" header="เลขที่" style="width: 160px; font-family: monospace; font-size: 12px" sortable />
-        <Column header="สูตร">
+        <Column header="สูตรซอส (SAUCE)">
           <template #body="{ data }">
-            <div style="font-weight: 500">{{ getFormulaName(data.formulaId) }}</div>
+            <template v-if="data.sauceFormulaId">
+              <div style="font-weight: 500">{{ formulaName(data.sauceFormulaId) }}</div>
+              <div class="mix-sub">
+                {{ mixNameFor(data.sauceFormulaId, data.sauceMixsizeKey) }} ·
+                {{ machineName(data.sauceMachineId) }}
+              </div>
+            </template>
+            <span v-else class="muted">— ไม่มีสูตรซอส</span>
           </template>
         </Column>
-        <Column header="ขนาด Mix" style="width: 110px; text-align: center">
-          <template #body="{ data }">{{ mixNameFor(data.formulaId, data.mixsizeId) }}</template>
+        <Column header="สูตรแปรรูป (SEMI)">
+          <template #body="{ data }">
+            <div style="font-weight: 500">{{ formulaName(data.semiFormulaId) }}</div>
+            <div class="mix-sub">
+              {{ mixNameFor(data.semiFormulaId, data.semiMixsizeKey) }} ·
+              {{ machineName(data.semiMachineId) }}
+            </div>
+          </template>
         </Column>
         <Column header="สถานะ" style="width: 140px">
           <template #body="{ data }">
@@ -106,54 +119,121 @@
       </DataTable>
     </div>
 
-    <Dialog v-model:visible="showCreate" header="สร้างใบสั่งผลิต" :style="{ width: '480px' }" modal>
+    <Dialog v-model:visible="showCreate" header="สร้างใบสั่งผลิต" :style="{ width: '560px' }" modal>
       <div class="dialog-form">
-        <div class="form-field">
-          <label>สูตร / Formula <span class="req">*</span></label>
-          <Dropdown
-            v-model="createForm.formulaId"
-            :options="activeFormulaOptions"
-            optionLabel="label"
-            optionValue="value"
-            filter
-            placeholder="เลือกสูตร..."
-            style="width: 100%"
-            @change="onFormulaChange"
-          />
+        <!-- Step 1 — the sauce half, mixed first (Homo mixer). -->
+        <div class="stage-block">
+          <div class="stage-head">
+            <span class="stage-no">1</span>
+            <div>
+              <div class="stage-title">สูตรซอส (SAUCE)</div>
+              <div class="stage-sub">ผสม Premix → ซอส</div>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>สูตร / Formula</label>
+            <Dropdown
+              v-model="createForm.sauceFormulaId"
+              :options="sauceFormulaOptions"
+              optionLabel="label"
+              optionValue="value"
+              filter
+              showClear
+              :emptyMessage="emptyFormulaMessage('SAUCE')"
+              placeholder="เลือกสูตรซอส..."
+              style="width: 100%"
+              @change="onSauceFormulaChange"
+            />
+          </div>
+          <div class="form-row-2">
+            <div class="form-field">
+              <label>ขนาด Mix (Mix size) <span v-if="createForm.sauceFormulaId" class="req">*</span></label>
+              <Dropdown
+                v-model="createForm.sauceMixsizeId"
+                :options="sauceMixsizeOptions"
+                optionLabel="label"
+                optionValue="value"
+                :disabled="!createForm.sauceFormulaId"
+                placeholder="เลือกขนาด Mix..."
+                style="width: 100%"
+              />
+            </div>
+            <div class="form-field">
+              <label>เครื่องจักร (Machine)</label>
+              <Dropdown
+                v-model="createForm.sauceMachineId"
+                :options="machineOptions"
+                optionLabel="label"
+                optionValue="value"
+                showClear
+                :disabled="!createForm.sauceFormulaId"
+                placeholder="เลือกเครื่องจักร..."
+                style="width: 100%"
+              />
+            </div>
+          </div>
+          <div v-if="sauceIngredientCount !== null" class="stage-preview">
+            ส่วนผสมตามสูตร: <strong>{{ sauceIngredientCount }} รายการ</strong>
+          </div>
         </div>
 
-        <div class="form-field">
-          <label>ขนาด Mix (Mix size) <span class="req">*</span></label>
-          <Dropdown
-            v-model="createForm.mixsizeId"
-            :options="mixsizeOptions"
-            optionLabel="label"
-            optionValue="value"
-            :disabled="!createForm.formulaId"
-            placeholder="เลือกขนาด Mix..."
-            style="width: 100%"
-          />
-        </div>
-
-        <div class="form-field">
-          <label>เครื่องจักร (Machine) <span class="req">*</span></label>
-          <Dropdown
-            v-model="createForm.machineId"
-            :options="machineOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="เลือกเครื่องจักร..."
-            style="width: 100%"
-          />
+        <!-- Step 2 — the semi half, which the API requires. -->
+        <div class="stage-block">
+          <div class="stage-head">
+            <span class="stage-no">2</span>
+            <div>
+              <div class="stage-title">สูตรแปรรูป (SEMI) <span class="req">*</span></div>
+              <div class="stage-sub">ผสมซอส + เนื้อแปรรูป</div>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>สูตร / Formula <span class="req">*</span></label>
+            <Dropdown
+              v-model="createForm.semiFormulaId"
+              :options="semiFormulaOptions"
+              optionLabel="label"
+              optionValue="value"
+              filter
+              :emptyMessage="emptyFormulaMessage('SEMI')"
+              placeholder="เลือกสูตรแปรรูป..."
+              style="width: 100%"
+              @change="onSemiFormulaChange"
+            />
+          </div>
+          <div class="form-row-2">
+            <div class="form-field">
+              <label>ขนาด Mix (Mix size) <span class="req">*</span></label>
+              <Dropdown
+                v-model="createForm.semiMixsizeId"
+                :options="semiMixsizeOptions"
+                optionLabel="label"
+                optionValue="value"
+                :disabled="!createForm.semiFormulaId"
+                placeholder="เลือกขนาด Mix..."
+                style="width: 100%"
+              />
+            </div>
+            <div class="form-field">
+              <label>เครื่องจักร (Machine)</label>
+              <Dropdown
+                v-model="createForm.semiMachineId"
+                :options="machineOptions"
+                optionLabel="label"
+                optionValue="value"
+                showClear
+                placeholder="เลือกเครื่องจักร..."
+                style="width: 100%"
+              />
+            </div>
+          </div>
+          <div v-if="semiIngredientCount !== null" class="stage-preview">
+            ส่วนผสมตามสูตร: <strong>{{ semiIngredientCount }} รายการ</strong>
+          </div>
         </div>
 
         <div class="form-field">
           <label>วันที่ผลิต (Plan date) <span class="req">*</span></label>
           <InputText v-model="createForm.planDate" type="date" style="width: 100%" />
-        </div>
-
-        <div v-if="createForm.formulaId && createForm.mixsizeId" class="total-preview">
-          ส่วนผสมตามสูตร: <strong>{{ getIngredientCount(createForm.formulaId, createForm.mixsizeId) }} รายการ</strong>
         </div>
       </div>
       <template #footer>
@@ -199,8 +279,9 @@ onMounted(async () => {
   // Only hydrate formulas that still exist (are in the list) — skip deleted ones
   // to avoid 404s.
   const knownIds = new Set(productionStore.formulas.map((f) => f.id));
-  const ids = [...new Set(productionStore.orders.map((o) => o.formulaId))].filter(
-    (id) => knownIds.has(id) && !productionStore.getFormulaById(id)?.mixSizes?.length,
+  const referenced = productionStore.orders.flatMap((o) => [o.semiFormulaId, o.sauceFormulaId]);
+  const ids = [...new Set(referenced)].filter(
+    (id) => id && knownIds.has(id) && !productionStore.getFormulaById(id)?.mixSizes?.length,
   );
   await Promise.all(ids.map((id) => productionStore.fetchFormula(id).catch(() => {})));
 });
@@ -209,7 +290,23 @@ const filterStatus = ref(null);
 const filterFormula = ref(null);
 const showCreate = ref(false);
 const saving = ref(false);
-const createForm = ref({ formulaId: null, mixsizeId: null, machineId: null, planDate: "" });
+/*
+ * An order pairs two formulas. The sauce half is optional on the API but
+ * indivisible — a sauce formula without its mix size is a 400 — so the form
+ * keeps the two together and clears them together.
+ */
+function emptyCreateForm() {
+  return {
+    sauceFormulaId: null,
+    sauceMixsizeId: null,
+    sauceMachineId: null,
+    semiFormulaId: null,
+    semiMixsizeId: null,
+    semiMachineId: null,
+    planDate: "",
+  };
+}
+const createForm = ref(emptyCreateForm());
 
 const statusOptions = [
   { label: "ยืนยันแล้ว", value: "ACCEPT" },
@@ -221,16 +318,31 @@ const statusOptions = [
 const formulaOptions = computed(() =>
   productionStore.formulas.map((f) => ({ label: `${f.code || "-"} — ${f.name}`, value: f.id })),
 );
-const activeFormulaOptions = computed(() =>
-  productionStore.formulas.filter((f) => f.active).map((f) => ({ label: `${f.code || "-"} — ${f.name}`, value: f.id })),
-);
+// Each side of the order offers only formulas of its own type. A formula with no
+// type predates the semi/sauce split and belongs to neither list — it would
+// snapshot the wrong lines into the order.
+function formulaOptionsOfType(type) {
+  return productionStore.formulas
+    .filter((f) => f.active && f.type === type)
+    .map((f) => ({ label: `${f.code || "-"} — ${f.name}`, value: f.id }));
+}
+const sauceFormulaOptions = computed(() => formulaOptionsOfType("SAUCE"));
+const semiFormulaOptions = computed(() => formulaOptionsOfType("SEMI"));
+function emptyFormulaMessage(type) {
+  const label = type === "SAUCE" ? "ซอส (SAUCE)" : "แปรรูป (SEMI)";
+  return `ยังไม่มีสูตรประเภท${label} — สร้างที่หน้า สูตร / BOM ก่อน`;
+}
 const machineOptions = computed(() =>
   masterStore.machines.map((m) => ({ label: `${m.name}${m.code ? ` (${m.code})` : ""}`, value: m.id })),
 );
 const filtered = computed(() =>
   productionStore.orders.filter((o) => {
     const matchStatus = !filterStatus.value || o.status === filterStatus.value;
-    const matchFormula = !filterFormula.value || o.formulaId === filterFormula.value;
+    // An order is matched by either of its formulas.
+    const matchFormula =
+      !filterFormula.value ||
+      o.semiFormulaId === filterFormula.value ||
+      o.sauceFormulaId === filterFormula.value;
     return matchStatus && matchFormula;
   }),
 );
@@ -238,8 +350,15 @@ const filtered = computed(() =>
 function getFormula(id) {
   return productionStore.getFormulaById(id);
 }
-function getFormulaName(id) {
+// The list read embeds both formulas, so prefer the store's copy and fall back
+// to the id itself only when a formula has since been deleted.
+function formulaName(id) {
+  if (!id) return "—";
   return getFormula(id)?.name || "—";
+}
+function machineName(id) {
+  const m = id && masterStore.getMachineById(id);
+  return m ? `${m.name}${m.code ? ` (${m.code})` : ""}` : "ไม่ระบุเครื่องจักร";
 }
 
 // Mix sizes are owned by the formula, so resolve the label from its mixSizes.
@@ -251,16 +370,27 @@ function mixNameFor(formulaId, key) {
   return "—";
 }
 
-const mixsizeOptions = computed(() => {
-  const f = getFormula(createForm.value.formulaId);
+function mixsizeOptionsFor(formulaId) {
+  const f = getFormula(formulaId);
   return (f?.mixSizes || []).map((ms) => ({ label: ms.name, value: ms.key }));
-});
+}
+const sauceMixsizeOptions = computed(() => mixsizeOptionsFor(createForm.value.sauceFormulaId));
+const semiMixsizeOptions = computed(() => mixsizeOptionsFor(createForm.value.semiFormulaId));
 
-function getIngredientCount(formulaId, mixsizeId) {
+// How many lines the order would snapshot from that mix size — null while the
+// pair is incomplete, so the caller can hide the line rather than show "0".
+function ingredientCount(formulaId, mixsizeId) {
+  if (!formulaId || !mixsizeId) return null;
   const bom = getFormula(formulaId)?.bomByMixsize?.[mixsizeId];
   if (bom) return (bom.premix?.length || 0) + (bom.ingredients?.length || 0);
-  return getFormula(formulaId)?.ingredients?.length || 0;
+  return getFormula(formulaId)?.ingredients?.length ?? null;
 }
+const sauceIngredientCount = computed(() =>
+  ingredientCount(createForm.value.sauceFormulaId, createForm.value.sauceMixsizeId),
+);
+const semiIngredientCount = computed(() =>
+  ingredientCount(createForm.value.semiFormulaId, createForm.value.semiMixsizeId),
+);
 function statusLabel(s) {
   return (
     {
@@ -295,35 +425,59 @@ function generateProdNo() {
 }
 
 function openCreate() {
-  createForm.value = { formulaId: null, mixsizeId: null, machineId: null, planDate: todayISO() };
+  createForm.value = { ...emptyCreateForm(), planDate: todayISO() };
   showCreate.value = true;
 }
-async function onFormulaChange() {
-  createForm.value.mixsizeId = null;
-  // The formula list is shallow; fetch the full formula so its mix sizes load.
-  const f = productionStore.getFormulaById(createForm.value.formulaId);
-  if (!f?.mixSizes?.length) {
-    await productionStore.fetchFormula(createForm.value.formulaId).catch(() => {});
+
+// The formula list is shallow, so a chosen formula has to be fetched in full
+// before its mix sizes exist to pick from.
+async function hydrateFormula(id) {
+  if (!id) return;
+  const f = productionStore.getFormulaById(id);
+  if (!f?.mixSizes?.length) await productionStore.fetchFormula(id).catch(() => {});
+}
+async function onSauceFormulaChange() {
+  createForm.value.sauceMixsizeId = null;
+  // Clearing the sauce formula clears the whole half: the API rejects a partial
+  // sauce side, and a machine for a stage that no longer exists is meaningless.
+  if (!createForm.value.sauceFormulaId) {
+    createForm.value.sauceMachineId = null;
+    return;
   }
-  createForm.value.mixsizeId = mixsizeOptions.value[0]?.value ?? null;
+  await hydrateFormula(createForm.value.sauceFormulaId);
+  createForm.value.sauceMixsizeId = sauceMixsizeOptions.value[0]?.value ?? null;
+}
+async function onSemiFormulaChange() {
+  createForm.value.semiMixsizeId = null;
+  await hydrateFormula(createForm.value.semiFormulaId);
+  createForm.value.semiMixsizeId = semiMixsizeOptions.value[0]?.value ?? null;
 }
 
 async function doCreate() {
   const f = createForm.value;
-  if (!f.formulaId) return toast.add({ severity: "warn", summary: "กรุณาเลือกสูตร", life: 3000 });
-  if (!f.mixsizeId) return toast.add({ severity: "warn", summary: "กรุณาเลือกขนาด Mix", life: 3000 });
-  if (!f.machineId) return toast.add({ severity: "warn", summary: "กรุณาเลือกเครื่องจักร", life: 3000 });
-  if (!f.planDate) return toast.add({ severity: "warn", summary: "กรุณาเลือกวันที่ผลิต", life: 3000 });
+  const warn = (summary) => toast.add({ severity: "warn", summary, life: 3000 });
+  if (!f.semiFormulaId) return warn("กรุณาเลือกสูตรแปรรูป (SEMI)");
+  if (!f.semiMixsizeId) return warn("กรุณาเลือกขนาด Mix ของสูตรแปรรูป");
+  // The sauce half is all-or-nothing on the API; say so here rather than let it
+  // come back as a 400.
+  if (f.sauceFormulaId && !f.sauceMixsizeId) return warn("กรุณาเลือกขนาด Mix ของสูตรซอส");
+  if (!f.planDate) return warn("กรุณาเลือกวันที่ผลิต");
 
   saving.value = true;
   try {
-    const order = await productionStore.createOrder({
-      formulaId: f.formulaId,
-      mixSizeId: Number(f.mixsizeId),
-      firstMachineId: f.machineId,
+    const payload = {
+      semiFormulaId: f.semiFormulaId,
+      semiMixSizeId: Number(f.semiMixsizeId),
       prodNo: generateProdNo(),
       planDate: f.planDate,
-    });
+    };
+    if (f.semiMachineId) payload.semiMachineId = f.semiMachineId;
+    if (f.sauceFormulaId) {
+      payload.sauceFormulaId = f.sauceFormulaId;
+      payload.sauceMixSizeId = Number(f.sauceMixsizeId);
+      if (f.sauceMachineId) payload.sauceMachineId = f.sauceMachineId;
+    }
+    const order = await productionStore.createOrder(payload);
     showCreate.value = false;
     toast.add({ severity: "success", summary: "สร้างใบสั่งผลิตสำเร็จ", detail: order.docNo, life: 3000 });
   } catch (e) {
@@ -354,6 +508,60 @@ function confirmCancel(order) {
 </script>
 
 <style scoped>
+/* The dialog mirrors the order: two numbered halves, then the date that applies
+   to both. Boxing each half is what keeps three near-identical dropdown trios
+   from reading as one long list. */
+.stage-block {
+  border: 1px solid var(--gl-border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.stage-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stage-no {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--gl-navy);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stage-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.stage-sub {
+  font-size: 12px;
+  color: var(--gl-text-subtle);
+}
+.stage-preview {
+  font-size: 12px;
+  color: var(--gl-text-muted);
+}
+.form-row-2 {
+  display: flex;
+  gap: 12px;
+}
+.form-row-2 .form-field {
+  flex: 1;
+  min-width: 0;
+}
+.mix-sub {
+  font-size: 12px;
+  color: var(--gl-text-subtle);
+}
+
 .stat-chips {
   display: flex;
   gap: 12px;

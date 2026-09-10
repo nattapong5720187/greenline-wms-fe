@@ -36,6 +36,24 @@
       </div>
       <div class="form-row">
         <div class="form-field">
+          <label>ประเภทของสูตร <span class="req">*</span></label>
+          <Dropdown
+            v-model="form.type"
+            :options="formulaTypeOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="เลือกประเภทของสูตร"
+            style="width: 100%"
+          >
+            <template #option="{ option }">
+              <div class="ft-option">
+                <span class="ft-name">{{ option.label }}</span>
+                <span class="ft-hint">{{ option.hint }}</span>
+              </div>
+            </template>
+          </Dropdown>
+        </div>
+        <div class="form-field">
           <label>ประเภทอาหาร <span class="req">*</span></label>
           <Dropdown
             v-model="form.animalType"
@@ -114,6 +132,10 @@
             </template>
           </MultiSelect>
         </div>
+        <div class="form-field" style="flex: 2">
+          <label>หมายเหตุ</label>
+          <InputText v-model="form.remark" placeholder="บันทึกเพิ่มเติมเกี่ยวกับสูตรนี้" style="width: 100%" />
+        </div>
         <div class="form-field">
           <label>สถานะ</label>
           <Dropdown
@@ -179,17 +201,34 @@
       </div>
 
       <template v-if="activeMixsizeId">
-        <!-- Premix -->
-        <div class="bom-section-head">
+        <!-- What the chosen formula type means for this tab. -->
+        <div v-if="form.type" class="scope-note">
+          <i class="pi pi-info-circle" />
+          <span>
+            สูตรประเภท <b>{{ typeLabel }}</b> — เพิ่มได้เฉพาะ <b>{{ sectionLabel }}</b>
+            ที่อยู่ในหมวด <b>{{ allowedCategoryName }}</b>
+            <template v-if="allowedProductCount === 0">
+              (ยังไม่มีสินค้าในหมวดนี้ ต้องเพิ่มสินค้าก่อนจึงจะเลือกได้)
+            </template>
+            <template v-else> ({{ allowedProductCount }} รายการ)</template>
+          </span>
+        </div>
+        <div v-else class="scope-note warn">
+          <i class="pi pi-exclamation-triangle" />
+          <span>ยังไม่ได้เลือกประเภทของสูตร — เลือกก่อนเพื่อจำกัดรายการที่เพิ่มได้ให้ถูกต้อง</span>
+        </div>
+
+        <!-- Premix — สูตรซอส (SAUCE) ผสมจาก Premix -->
+        <div v-if="showPremix" class="bom-section-head">
           <div class="section-title" style="margin-bottom: 0">
             <i class="pi pi-bolt ic-premix" /> Premix — {{ getBom(activeMixsizeId).premix.length }} รายการ
           </div>
           <Button label="เพิ่ม Premix" icon="pi pi-plus" size="small" outlined @click="addPremix(activeMixsizeId)" />
         </div>
-        <div v-if="getBom(activeMixsizeId).premix.length === 0" class="empty-bom">
+        <div v-if="showPremix && getBom(activeMixsizeId).premix.length === 0" class="empty-bom">
           ยังไม่มี Premix — กดปุ่ม "เพิ่ม Premix" เพื่อเริ่มต้น
         </div>
-        <div v-else>
+        <div v-else-if="showPremix">
           <div class="bom-header">
             <div style="flex: 2">Premix</div>
             <div style="width: 140px; text-align: right">ปริมาณ / Batch</div>
@@ -200,10 +239,12 @@
             <div style="flex: 2">
               <Dropdown
                 v-model="ing.productId"
-                :options="productOptions"
+                :options="premixOptions"
                 optionLabel="label"
                 optionValue="value"
                 filter
+                :emptyMessage="emptyPickerMessage"
+                :emptyFilterMessage="emptyPickerMessage"
                 placeholder="เลือก Premix..."
                 style="width: 100%"
               />
@@ -239,8 +280,8 @@
           </div>
         </div>
 
-        <!-- Ingredients -->
-        <div class="bom-section-head" style="margin-top: 20px">
+        <!-- ส่วนผสม / วัตถุดิบ — สูตรแปรรูป (SEMI) ผสมจากวัตถุดิบ -->
+        <div v-if="showIngredients" class="bom-section-head" :style="{ marginTop: showPremix ? '20px' : '0' }">
           <div class="section-title" style="margin-bottom: 0">
             <i class="pi pi-box ic-ingredient" /> ส่วนผสม / วัตถุดิบ —
             {{ getBom(activeMixsizeId).ingredients.length }} รายการ
@@ -253,10 +294,10 @@
             @click="addIngredient(activeMixsizeId)"
           />
         </div>
-        <div v-if="getBom(activeMixsizeId).ingredients.length === 0" class="empty-bom">
+        <div v-if="showIngredients && getBom(activeMixsizeId).ingredients.length === 0" class="empty-bom">
           ยังไม่มีวัตถุดิบ — กดปุ่ม "เพิ่มวัตถุดิบ" เพื่อเริ่มต้น
         </div>
-        <div v-else>
+        <div v-else-if="showIngredients">
           <div class="bom-header">
             <div style="flex: 2">สินค้า / วัตถุดิบ</div>
             <div style="width: 140px; text-align: right">ปริมาณ / Batch</div>
@@ -267,10 +308,12 @@
             <div style="flex: 2">
               <Dropdown
                 v-model="ing.productId"
-                :options="productOptions"
+                :options="ingredientOptions"
                 optionLabel="label"
                 optionValue="value"
                 filter
+                :emptyMessage="emptyPickerMessage"
+                :emptyFilterMessage="emptyPickerMessage"
                 placeholder="เลือกสินค้า..."
                 style="width: 100%"
               />
@@ -304,6 +347,24 @@
               />
             </div>
           </div>
+        </div>
+
+        <!-- Switching type must not silently drop or silently keep lines the new
+             type has no place for. -->
+        <div v-if="strandedCount > 0" class="stranded-note">
+          <div>
+            <i class="pi pi-exclamation-triangle" />
+            มี{{ showPremix ? "ส่วนผสม / วัตถุดิบ" : "Premix" }} {{ strandedCount }} รายการ
+            ที่ไม่ใช่ของสูตรประเภท{{ typeLabel }} — จะถูกบันทึกไว้ต่อแต่ไม่แสดงในหน้านี้
+          </div>
+          <Button
+            label="ลบรายการเหล่านั้น"
+            icon="pi pi-trash"
+            size="small"
+            severity="danger"
+            outlined
+            @click="clearStranded"
+          />
         </div>
       </template>
     </div>
@@ -341,6 +402,8 @@ const form = ref({
   code: "",
   name: "",
   productCode: "",
+  type: null,
+  remark: "",
   active: true,
   animalType: null,
   packagingType: null,
@@ -349,6 +412,24 @@ const form = ref({
   isConfidential: false,
   mixsizeIds: [],
 });
+
+/*
+ * A formula describes one half of a production run, and that half decides what it
+ * can be mixed from: a sauce is mixed from premix, a semi from raw material. The
+ * two halves are the two BOM sections the screen already had (`stepType`
+ * PREMIX / INGREDIENT on the API), so choosing the type is what selects the
+ * section — and the section's picker is narrowed to the matching product
+ * category. Category *codes*, not names: the names are Thai display text and get
+ * edited, the codes are the categories' identity.
+ */
+const formulaTypeOptions = [
+  { label: "ซอส (SAUCE)", value: "SAUCE", hint: "ผสม Premix → ซอส" },
+  { label: "แปรรูป (SEMI)", value: "SEMI", hint: "ผสมวัตถุดิบ → เนื้อแปรรูป" },
+];
+const TYPE_SCOPE = {
+  SAUCE: { categoryCode: "PREMIX", section: "Premix" },
+  SEMI: { categoryCode: "RAW_MATERIAL", section: "ส่วนผสม / วัตถุดิบ" },
+};
 
 const animalTypeOptions = [
   { label: "สุนัข", value: "dog" },
@@ -450,12 +531,66 @@ function handleAddMixsize() {
   showAddMixsize.value = false;
 }
 
-// ── BOM options ────────────────────────────────────────────
-// Backend distinguishes premix vs. ingredient by `stepType`, not by product
-// category, so any product may appear in either section.
-const productOptions = computed(() =>
-  masterStore.products.map((p) => ({ label: `${p.code || p.sku} — ${p.name}`, value: p.id })),
+// ── Which section this formula type owns ───────────────────
+// A formula with no type predates the split: show both sections, unfiltered, so
+// an old formula still round-trips instead of losing half its BOM on save.
+const showPremix = computed(() => form.value.type !== "SEMI");
+const showIngredients = computed(() => form.value.type !== "SAUCE");
+
+const scope = computed(() => (form.value.type ? TYPE_SCOPE[form.value.type] : null));
+const typeLabel = computed(
+  () => formulaTypeOptions.find((o) => o.value === form.value.type)?.label ?? "-",
 );
+const sectionLabel = computed(() => scope.value?.section ?? "");
+
+const allowedCategoryIds = computed(() => {
+  if (!scope.value) return null;
+  return new Set(
+    masterStore.categories.filter((c) => c.code === scope.value.categoryCode).map((c) => c.id),
+  );
+});
+const allowedCategoryName = computed(() => {
+  const cat = masterStore.categories.find((c) => c.code === scope.value?.categoryCode);
+  return cat?.name || scope.value?.categoryCode || "";
+});
+const allowedProductCount = computed(() =>
+  allowedCategoryIds.value === null
+    ? masterStore.products.length
+    : masterStore.products.filter((p) => allowedCategoryIds.value.has(p.categoryId)).length,
+);
+const emptyPickerMessage = computed(() =>
+  allowedProductCount.value === 0 && scope.value
+    ? `ยังไม่มีสินค้าในหมวด ${allowedCategoryName.value}`
+    : "ไม่พบสินค้า",
+);
+
+// ── BOM options ────────────────────────────────────────────
+// The API tells premix from ingredient by `stepType`, so the narrowing here is
+// the screen's rule, not the API's. A product already saved on a line stays
+// selectable even when it sits outside the allowed category — otherwise editing
+// an older formula would blank out lines the user never touched.
+function buildOptions(rows) {
+  const allowed = allowedCategoryIds.value;
+  const used = new Set((rows || []).map((r) => r.productId).filter(Boolean));
+  return masterStore.products
+    .filter((p) => !allowed || allowed.has(p.categoryId) || used.has(p.id))
+    .map((p) => ({ label: `${p.code || p.sku} — ${p.name}`, value: p.id }));
+}
+const activeBom = computed(() => bomRows.value[activeMixsizeId.value] || { premix: [], ingredients: [] });
+const premixOptions = computed(() => buildOptions(activeBom.value.premix));
+const ingredientOptions = computed(() => buildOptions(activeBom.value.ingredients));
+
+// Lines the chosen type has no section for, on the tab in view.
+const strandedCount = computed(() => {
+  if (!form.value.type) return 0;
+  return (showPremix.value ? activeBom.value.ingredients : activeBom.value.premix).length;
+});
+function clearStranded() {
+  const bom = bomRows.value[activeMixsizeId.value];
+  if (!bom) return;
+  if (showPremix.value) bom.ingredients = [];
+  else bom.premix = [];
+}
 const unitOptions = computed(() => masterStore.units);
 
 // Default new BOM rows to กิโลกรัม (kg) when it exists, else the first unit.
@@ -481,6 +616,9 @@ function removeIngredient(key, idx) {
 onMounted(async () => {
   if (!masterStore.units.length) masterStore.fetchUnits();
   if (!masterStore.products.length) masterStore.fetchProducts();
+  // The ingredient pickers filter on category code, so the category list is a
+  // dependency of this screen, not just of the product screens.
+  if (!masterStore.categories.length) masterStore.fetchCategories();
   if (!masterStore.packagingSizes.length) masterStore.fetchPackagingSizes();
   if (!masterStore.brands.length) masterStore.fetchBrands();
   if (isEdit.value) {
@@ -491,6 +629,8 @@ onMounted(async () => {
           code: f.code,
           name: f.name,
           productCode: f.productCode || "",
+          type: f.type || null,
+          remark: f.remark || "",
           active: f.active,
           animalType: f.animalType || null,
           packagingType: f.packagingType || null,
@@ -528,6 +668,7 @@ onMounted(async () => {
 async function save() {
   const missing = [];
   if (!form.value.name) missing.push("ชื่อสูตร");
+  if (!form.value.type) missing.push("ประเภทของสูตร");
   if (!form.value.animalType) missing.push("ประเภทอาหาร");
   if (!form.value.packagingType) missing.push("ประเภทบรรจุภัณฑ์");
   if (!form.value.packagingSize) missing.push("ขนาดบรรจุภัณฑ์");
@@ -620,6 +761,55 @@ async function save() {
   color: var(--gl-navy);
   border-bottom-color: var(--gl-navy);
   font-weight: 600;
+}
+
+/* The type is the rule for this screen, so it is stated on screen rather than
+   left to be inferred from an empty dropdown. */
+.scope-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: var(--gl-primary-tint, #eef2ff);
+  color: var(--gl-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.scope-note.warn {
+  background: #fffbeb;
+  color: #92400e;
+}
+.scope-note i {
+  margin-top: 2px;
+}
+.stranded-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 13px;
+}
+.stranded-note i {
+  margin-right: 6px;
+}
+.ft-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ft-name {
+  font-weight: 500;
+}
+.ft-hint {
+  font-size: 12px;
+  color: var(--gl-text-subtle);
 }
 
 /* BOM */

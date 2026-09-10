@@ -48,10 +48,31 @@ function normalizeUnit(u) {
 // Alias `sku`→`code` and `hasLot`→`requireLot` so the many other (still mock-based)
 // views that read those names keep working unchanged.
 function normalizeProduct(p) {
-  return { ...p, code: p.sku, requireLot: p.hasLot, active: true }
+  return { ...p, code: p.sku, requireLot: p.hasLot, active: !p.isDelete }
 }
 
 export const useMasterStore = defineStore('master', () => {
+  /*
+   * Out-of-order list responses used to decide what a screen showed. Every list
+   * filter refetches on change, so two requests for the same list are routinely
+   * in flight at once — and whichever *answered* last won, even when it was the
+   * older one. (A request retried after a 401 token refresh answers especially
+   * late.) The visible bug: pick "ที่ถูกลบแล้ว" then "ที่ใช้งาน" quickly, and the
+   * dropdown says live while the table lists deleted products.
+   *
+   * So each fetch takes a ticket for its list, and only the newest ticket may
+   * write to the store or clear the spinner.
+   */
+  const listTickets = new Map()
+  function takeTicket(key) {
+    const ticket = (listTickets.get(key) ?? 0) + 1
+    listTickets.set(key, ticket)
+    return ticket
+  }
+  function isLatest(key, ticket) {
+    return listTickets.get(key) === ticket
+  }
+
   const warehouses = ref([])
   const warehousesLoading = ref(false)
   const categories = ref([])
@@ -134,17 +155,19 @@ export const useMasterStore = defineStore('master', () => {
 
   /** One server page for the category screen's table. */
   async function fetchCategoryList({ page = 1, limit = categoryListMeta.value.limit, search } = {}) {
+    const ticket = takeTicket('categories')
     categoryListLoading.value = true
     try {
       const params = { page, limit }
       if (search?.trim()) params.search = search.trim()
       const { data } = await apiGetCategories(params)
+      if (!isLatest('categories', ticket)) return
       categoryList.value = data.data || []
       categoryListMeta.value = {
         page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
       }
     } finally {
-      categoryListLoading.value = false
+      if (isLatest('categories', ticket)) categoryListLoading.value = false
     }
   }
   async function addCategory(data) {
@@ -175,17 +198,19 @@ export const useMasterStore = defineStore('master', () => {
 
   /** One server page for the unit screen's table. */
   async function fetchUnitList({ page = 1, limit = unitListMeta.value.limit, search } = {}) {
+    const ticket = takeTicket('units')
     unitListLoading.value = true
     try {
       const params = { page, limit }
       if (search?.trim()) params.search = search.trim()
       const { data } = await apiGetUnits(params)
+      if (!isLatest('units', ticket)) return
       unitList.value = (data.data || []).map(normalizeUnit)
       unitListMeta.value = {
         page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
       }
     } finally {
-      unitListLoading.value = false
+      if (isLatest('units', ticket)) unitListLoading.value = false
     }
   }
   async function addUnit(data) {
@@ -231,17 +256,19 @@ export const useMasterStore = defineStore('master', () => {
 
   /** One server page for the supplier screen's table. */
   async function fetchSupplierList({ page = 1, limit = supplierListMeta.value.limit, search } = {}) {
+    const ticket = takeTicket('suppliers')
     supplierListLoading.value = true
     try {
       const params = { page, limit }
       if (search?.trim()) params.search = search.trim()
       const { data } = await apiGetSuppliers(params)
+      if (!isLatest('suppliers', ticket)) return
       supplierList.value = data.data || []
       supplierListMeta.value = {
         page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
       }
     } finally {
-      supplierListLoading.value = false
+      if (isLatest('suppliers', ticket)) supplierListLoading.value = false
     }
   }
   async function addSupplier(data) {
@@ -264,15 +291,21 @@ export const useMasterStore = defineStore('master', () => {
   // GET /products is paginated (max limit 100). Reference consumers (formula BOM,
   // stock, documents, packing, dashboard…) need the FULL live list, so walk every
   // page and flatten into `products`.
+  /**
+   * The reference cache every product dropdown reads. It asks for live products
+   * only: `isDelete` omitted means "both" on the API, which would put deleted
+   * products in every picker in the app.
+   */
   async function fetchProducts() {
     productsLoading.value = true
     try {
       const limit = 100
-      const first = (await apiGetProducts({ page: 1, limit })).data
+      const query = { limit, isDelete: false }
+      const first = (await apiGetProducts({ ...query, page: 1 })).data
       let all = first.data || []
       const totalPages = first.totalPages || 1
       for (let page = 2; page <= totalPages; page++) {
-        const { data } = await apiGetProducts({ page, limit })
+        const { data } = await apiGetProducts({ ...query, page })
         all = all.concat(data.data || [])
       }
       products.value = all.map(normalizeProduct)
@@ -282,21 +315,27 @@ export const useMasterStore = defineStore('master', () => {
   }
 
   // One server page for the SKU list view. Sends only the filters the backend
-  // supports: title (name contains), sku (contains), categoryIds (CSV), page, limit.
-  async function fetchProductList({ page = 1, limit = 15, title, sku, categoryIds } = {}) {
+  // supports: title (name contains), sku (contains), categoryIds (CSV),
+  // isDelete (tri-state), page, limit.
+  async function fetchProductList({ page = 1, limit = 15, title, sku, categoryIds, isDelete } = {}) {
+    const ticket = takeTicket('products')
     productListLoading.value = true
     try {
       const params = { page, limit }
       if (title?.trim()) params.title = title.trim()
       if (sku?.trim()) params.sku = sku.trim()
       if (categoryIds?.length) params.categoryIds = categoryIds.join(',')
+      // Tri-state: only send the key when a side was actually chosen, because
+      // leaving it out is what asks the API for both.
+      if (typeof isDelete === 'boolean') params.isDelete = isDelete
       const { data } = await apiGetProducts(params)
+      if (!isLatest('products', ticket)) return
       productList.value = (data.data || []).map(normalizeProduct)
       productListMeta.value = {
         page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
       }
     } finally {
-      productListLoading.value = false
+      if (isLatest('products', ticket)) productListLoading.value = false
     }
   }
   async function addProduct(data) {
@@ -329,17 +368,19 @@ export const useMasterStore = defineStore('master', () => {
 
   /** One server page for the machine screen's table. */
   async function fetchMachineList({ page = 1, limit = machineListMeta.value.limit, search } = {}) {
+    const ticket = takeTicket('machines')
     machineListLoading.value = true
     try {
       const params = { page, limit }
       if (search?.trim()) params.search = search.trim()
       const { data } = await apiGetMachines(params)
+      if (!isLatest('machines', ticket)) return
       machineList.value = data.data || []
       machineListMeta.value = {
         page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
       }
     } finally {
-      machineListLoading.value = false
+      if (isLatest('machines', ticket)) machineListLoading.value = false
     }
   }
   async function addMachine(data) {
@@ -370,17 +411,19 @@ export const useMasterStore = defineStore('master', () => {
 
   /** One server page for the packagingSize screen's table. */
   async function fetchPackagingSizeList({ page = 1, limit = packagingSizeListMeta.value.limit, search } = {}) {
+    const ticket = takeTicket('packagingSizes')
     packagingSizeListLoading.value = true
     try {
       const params = { page, limit }
       if (search?.trim()) params.search = search.trim()
       const { data } = await apiGetPackageSizes(params)
+      if (!isLatest('packagingSizes', ticket)) return
       packagingSizeList.value = data.data || []
       packagingSizeListMeta.value = {
         page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
       }
     } finally {
-      packagingSizeListLoading.value = false
+      if (isLatest('packagingSizes', ticket)) packagingSizeListLoading.value = false
     }
   }
   async function addPackagingSize(data) {
@@ -412,17 +455,19 @@ export const useMasterStore = defineStore('master', () => {
 
   /** One server page for the brand screen's table. */
   async function fetchBrandList({ page = 1, limit = brandListMeta.value.limit, search } = {}) {
+    const ticket = takeTicket('brands')
     brandListLoading.value = true
     try {
       const params = { page, limit }
       if (search?.trim()) params.search = search.trim()
       const { data } = await apiGetBrands(params)
+      if (!isLatest('brands', ticket)) return
       brandList.value = data.data || []
       brandListMeta.value = {
         page: data.page, limit: data.limit, total: data.total, totalPages: data.totalPages,
       }
     } finally {
-      brandListLoading.value = false
+      if (isLatest('brands', ticket)) brandListLoading.value = false
     }
   }
   async function addBrand(data) {

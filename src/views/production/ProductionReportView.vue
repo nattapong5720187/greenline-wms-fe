@@ -44,7 +44,8 @@
         <Column field="docNo" header="เลขที่" style="width:160px; font-family:monospace; font-size:12px;" sortable />
         <Column header="สูตร">
           <template #body="{ data }">
-            <div style="font-weight:500;">{{ getFormulaName(data.formulaId) }}</div>
+            <div style="font-weight:500;">{{ getFormulaName(data.semiFormulaId) }}</div>
+            <div v-if="data.sauceFormulaId" class="formula-sub">ซอส: {{ getFormulaName(data.sauceFormulaId) }}</div>
           </template>
         </Column>
         <Column header="Batch" style="width:70px; text-align:center;">
@@ -114,7 +115,11 @@ const formulaOptions = computed(() =>
 )
 const filtered = computed(() =>
   productionStore.orders.filter(o => {
-    const matchFormula = !filterFormula.value || o.formulaId === filterFormula.value
+    // An order pairs two formulas; either one matches it.
+    const matchFormula =
+      !filterFormula.value ||
+      o.semiFormulaId === filterFormula.value ||
+      o.sauceFormulaId === filterFormula.value
     const matchStatus  = !filterStatus.value || o.status === filterStatus.value
     return matchFormula && matchStatus
   })
@@ -132,6 +137,11 @@ function formatDt(dt) {
 </script>
 
 <style scoped>
+.formula-sub {
+  font-size: 12px;
+  color: var(--gl-text-subtle);
+}
+
 .summary-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .sum-card {
   background: #fff; border-radius: 10px; padding: 14px 18px;
