@@ -89,10 +89,19 @@
                :style="{ color: data.hasLot ? 'var(--gl-success)' : 'var(--gl-text-muted)' }" />
           </template>
         </Column>
-        <Column header="จัดการ" style="width: 110px;">
+        <Column header="จัดการ" style="width: 130px;">
           <template #body="{ data }">
-            <!-- A deleted product has nothing left to edit or delete. -->
-            <span v-if="data.isDelete" class="muted small">—</span>
+            <!-- A deleted product cannot be edited or deleted again — the one
+                 thing left to do with it is bring it back. -->
+            <Button
+              v-if="data.isDelete"
+              label="กู้คืน"
+              icon="pi pi-replay"
+              size="small"
+              text
+              :loading="restoringId === data.id"
+              @click="confirmRestore(data)"
+            />
             <div v-else class="action-btns">
               <RouterLink :to="`/master/products/${data.id}/edit`">
                 <Button icon="pi pi-pencil" size="small" text rounded />
@@ -191,6 +200,56 @@ onMounted(() => {
   if (!masterStore.categories.length) masterStore.fetchCategories()
   if (!masterStore.units.length) masterStore.fetchUnits()
 })
+
+// Which row is mid-restore, so only that button shows a spinner.
+const restoringId = ref(null)
+
+function confirmRestore(product) {
+  confirm.require({
+    message: `กู้คืนสินค้า "${product.name}" (${product.sku}) ให้กลับมาใช้งานได้อีกครั้งใช่หรือไม่?`,
+    header: 'ยืนยันการกู้คืน',
+    icon: 'pi pi-replay',
+    acceptLabel: 'กู้คืนสินค้า',
+    rejectLabel: 'ยกเลิก',
+    accept: async () => {
+      restoringId.value = product.id
+      try {
+        await masterStore.restoreProduct(product.id)
+        toast.add({
+          severity: 'success',
+          summary: 'กู้คืนสำเร็จ',
+          detail: `${product.name} กลับมาใช้งานได้แล้ว`,
+          life: 3000,
+        })
+        // The row no longer belongs in this list when it is filtered to deleted
+        // products; step back a page if it was the last one left.
+        const m = masterStore.productListMeta
+        const page =
+          filterDeleted.value === true && masterStore.productList.length <= 1 && m.page > 1
+            ? m.page - 1
+            : m.page
+        await loadPage(page)
+      } catch (e) {
+        // 409 has exactly one cause here — a live product took the sku while this
+        // one was deleted — and the API reports it in English. Say it in Thai,
+        // with the one thing the user can actually do about it.
+        if (e.response?.status === 409) {
+          toast.add({
+            severity: 'error',
+            summary: 'กู้คืนไม่สำเร็จ — SKU ซ้ำ',
+            detail: `SKU ${product.sku} ถูกใช้โดยสินค้าที่ใช้งานอยู่แล้ว ต้องแก้ SKU ของสินค้าตัวนั้นก่อนจึงจะกู้คืนได้`,
+            life: 6000,
+          })
+        } else {
+          const msg = e.response?.data?.message || 'กู้คืนไม่สำเร็จ'
+          toast.add({ severity: 'error', summary: Array.isArray(msg) ? msg.join(', ') : msg, life: 4000 })
+        }
+      } finally {
+        restoringId.value = null
+      }
+    },
+  })
+}
 
 function confirmDelete(product) {
   confirm.require({

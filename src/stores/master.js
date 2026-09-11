@@ -6,7 +6,7 @@ import { apiGetWarehouses, apiCreateWarehouse, apiUpdateWarehouse, apiDeleteWare
 import { apiGetCategories, apiCreateCategory, apiUpdateCategory, apiDeleteCategory } from '@/api/categories'
 import { apiGetUnits, apiCreateUnit, apiUpdateUnit, apiDeleteUnit } from '@/api/units'
 import { apiGetSuppliers, apiCreateSupplier, apiUpdateSupplier, apiDeleteSupplier } from '@/api/suppliers'
-import { apiGetProducts, apiCreateProduct, apiUpdateProduct, apiDeleteProduct } from '@/api/products'
+import { apiGetProducts, apiCreateProduct, apiUpdateProduct, apiDeleteProduct, apiRestoreProduct } from '@/api/products'
 import { apiGetPackageSizes, apiCreatePackageSize, apiUpdatePackageSize, apiDeletePackageSize } from '@/api/packagingSizes'
 import { apiGetBrands, apiCreateBrand, apiUpdateBrand, apiDeleteBrand } from '@/api/brands'
 
@@ -355,6 +355,19 @@ export const useMasterStore = defineStore('master', () => {
     await apiDeleteProduct(id)
     products.value = products.value.filter(p => p.id !== id)
   }
+  /**
+   * Undo a soft delete. The restored product belongs back in `products` — the
+   * reference cache every picker reads — so it is put there rather than waiting
+   * for the next full refetch, which may not happen until a reload.
+   */
+  async function restoreProduct(id) {
+    const { data } = await apiRestoreProduct(id)
+    const normalized = normalizeProduct(data)
+    const i = products.value.findIndex(p => p.id === id)
+    if (i === -1) products.value.push(normalized)
+    else products.value[i] = normalized
+    return normalized
+  }
 
   // ---- Machines ----
   async function fetchMachines() {
@@ -512,7 +525,7 @@ export const useMasterStore = defineStore('master', () => {
     fetchUnits, fetchUnitList, addUnit, updateUnit, deleteUnit,
     addMixsize, updateMixsize, deleteMixsize, getMixsizeById,
     fetchSuppliers, fetchSupplierList, addSupplier, updateSupplier, deleteSupplier,
-    fetchProducts, fetchProductList, addProduct, updateProduct, deleteProduct,
+    fetchProducts, fetchProductList, addProduct, updateProduct, deleteProduct, restoreProduct,
 
     fetchMachines, fetchMachineList, addMachine, updateMachine, deleteMachine,
     fetchPackagingSizes, fetchPackagingSizeList, addPackagingSize, updatePackagingSize, deletePackagingSize, getPackagingSizeById,
