@@ -46,6 +46,33 @@
             />
           </div>
           <div>
+            <label class="field-label">หน่วยย่อย</label>
+            <Dropdown
+              v-model="form.subUnitId"
+              :options="masterStore.units"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="เลือกหน่วยย่อย"
+              class="w-full"
+              showClear
+            />
+          </div>
+          <div>
+            <label class="field-label">น้ำหนักต่อหน่วย</label>
+            <!-- The sub unit is shown inside the field, so the number reads as
+                 "1 KG" while it is being typed rather than as a bare 1. -->
+            <InputNumber
+              v-model="form.weightPerUnit"
+              class="w-full"
+              :min="0"
+              :minFractionDigits="0"
+              :maxFractionDigits="3"
+              :suffix="weightSuffix"
+              placeholder="0"
+            />
+            <small v-if="!form.subUnitId" class="field-hint">เลือกหน่วยย่อยเพื่อให้แสดงหน่วยต่อท้าย</small>
+          </div>
+          <div>
             <label class="field-label">Product Type <span class="req">*</span></label>
             <InputText v-model="form.productType" class="w-full" placeholder="เช่น FINISHED_GOOD" required />
           </div>
@@ -96,7 +123,15 @@ const saving = ref(false)
 
 const form = ref({
   sku: '', name: '', categoryId: null, unitId: null,
+  subUnitId: null, weightPerUnit: null,
   productType: '', minStock: 0, hasLot: false,
+})
+
+// What InputNumber appends to the value, e.g. " KG". Blank until a sub unit is
+// chosen — an appended unit nobody picked would be a guess.
+const weightSuffix = computed(() => {
+  const unit = masterStore.getUnitById(form.value.subUnitId)
+  return unit ? ` ${unit.code || unit.abbr || unit.name}` : ''
 })
 
 onMounted(async () => {
@@ -111,6 +146,7 @@ onMounted(async () => {
     if (p) {
       form.value = {
         sku: p.sku, name: p.name, categoryId: p.categoryId, unitId: p.unitId,
+        subUnitId: p.subUnitId ?? null, weightPerUnit: p.weightPerUnit ?? null,
         productType: p.productType, minStock: p.minStock, hasLot: p.hasLot,
       }
     }
@@ -123,12 +159,17 @@ async function handleSave() {
     return
   }
   saving.value = true
+  const payload = {
+    ...form.value,
+    subUnitId: form.value.subUnitId ?? null,
+    weightPerUnit: form.value.weightPerUnit ?? null,
+  }
   try {
     if (isEdit.value) {
-      await masterStore.updateProduct(route.params.id, { ...form.value })
+      await masterStore.updateProduct(route.params.id, payload)
       toast.add({ severity: 'success', summary: 'บันทึกสำเร็จ', detail: 'แก้ไขข้อมูลสินค้าแล้ว', life: 3000 })
     } else {
-      await masterStore.addProduct({ ...form.value })
+      await masterStore.addProduct(payload)
       toast.add({ severity: 'success', summary: 'เพิ่มสินค้าสำเร็จ', detail: form.value.name, life: 3000 })
     }
     router.push('/master/products')
@@ -147,6 +188,7 @@ async function handleSave() {
   margin-top: 24px; padding-top: 20px;
   border-top: 1px solid var(--gl-border);
 }
+.field-hint { display: block; margin-top: 4px; font-size: 12px; color: var(--gl-text-subtle); }
 .check-group .checks { display: flex; gap: 20px; margin-top: 8px; }
 .check-item { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 </style>

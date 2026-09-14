@@ -3,9 +3,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">{{ config.label }}</div>
-        <div class="page-subtitle">
-          {{ config.listSubtitle }} — ทั้งหมด {{ list.total }} ฉบับ
-        </div>
+        <div class="page-subtitle">{{ config.listSubtitle }} — ทั้งหมด {{ list.total }} ฉบับ</div>
       </div>
       <RouterLink :to="`/documents/${kind}/create`">
         <Button :label="`สร้าง${config.label}`" icon="pi pi-plus" class="btn-primary" />
@@ -26,11 +24,7 @@
 
         <span class="search-wrap">
           <i class="pi pi-user" />
-          <InputText
-            v-model="userName"
-            placeholder="ผู้สร้างเอกสาร..."
-            style="padding-left: 2.2rem; width: 200px"
-          />
+          <InputText v-model="userName" placeholder="ผู้สร้างเอกสาร..." style="padding-left: 2.2rem; width: 200px" />
           <i v-if="userName" class="pi pi-times clear-icon" @click="userName = ''" />
         </span>
 
@@ -83,7 +77,7 @@
         <template #empty>
           <div class="empty-state">
             <i class="pi pi-file" />
-            <div>{{ hasFilters ? 'ไม่พบเอกสารที่ตรงกับตัวกรอง' : `ยังไม่มี${config.label}` }}</div>
+            <div>{{ hasFilters ? "ไม่พบเอกสารที่ตรงกับตัวกรอง" : `ยังไม่มี${config.label}` }}</div>
             <RouterLink v-if="!hasFilters" :to="`/documents/${kind}/create`">
               <Button :label="`สร้าง${config.label}`" icon="pi pi-plus" text size="small" />
             </RouterLink>
@@ -102,7 +96,7 @@
           <template #body="{ data }">{{ warehouseName(data.warehouseId) }}</template>
         </Column>
 
-        <Column header="วันที่เอกสาร" style="width: 130px">
+        <Column :header="config.dateLabel" style="width: 130px">
           <template #body="{ data }">{{ formatThaiDate(data.docDate) }}</template>
         </Column>
 
@@ -120,7 +114,7 @@
 
         <Column header="หมายเหตุ">
           <template #body="{ data }">
-            <span class="remark">{{ data.remark || '—' }}</span>
+            <span class="remark">{{ data.remark || "—" }}</span>
           </template>
         </Column>
 
@@ -136,10 +130,7 @@
               <RouterLink :to="`/documents/${kind}/${data.id}`">
                 <Button icon="pi pi-eye" size="small" text rounded v-tooltip="'ดูรายละเอียด'" />
               </RouterLink>
-              <RouterLink
-                v-if="data.status === 'DRAFT'"
-                :to="`/documents/${kind}/${data.id}/edit`"
-              >
+              <RouterLink v-if="data.status === 'DRAFT'" :to="`/documents/${kind}/${data.id}/edit`">
                 <Button icon="pi pi-pencil" size="small" text rounded v-tooltip="'แก้ไข'" />
               </RouterLink>
               <Button
@@ -180,67 +171,61 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { watchDebounced } from '@vueuse/core'
-import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
-import { useMasterStore } from '@/stores/master'
-import {
-  DOC_KINDS,
-  useStockDocumentStore,
-  statusClass,
-  statusIcon,
-  statusLabel,
-} from '@/stores/stockDocuments'
-import { formatThaiDate, formatThaiDateTime } from '@/utils/date'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import Dropdown from 'primevue/dropdown'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
+import { useMasterStore } from "@/stores/master";
+import { DOC_KINDS, statusClass, statusIcon, statusLabel, useStockDocumentStore } from "@/stores/stockDocuments";
+import { formatThaiDate, formatThaiDateTime } from "@/utils/date";
+import { watchDebounced } from "@vueuse/core";
+import Button from "primevue/button";
+import Column from "primevue/column";
+import DataTable from "primevue/datatable";
+import Dropdown from "primevue/dropdown";
+import InputText from "primevue/inputtext";
+import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 
-const route = useRoute()
-const toast = useToast()
-const confirm = useConfirm()
-const masterStore = useMasterStore()
-const docStore = useStockDocumentStore()
+const route = useRoute();
+const toast = useToast();
+const confirm = useConfirm();
+const masterStore = useMasterStore();
+const docStore = useStockDocumentStore();
 
 const STATUS_OPTIONS = [
-  { label: 'ร่าง', value: 'DRAFT' },
-  { label: 'รออนุมัติ', value: 'IN_PROCESS' },
-  { label: 'สำเร็จ', value: 'SUCCESS' },
-]
+  { label: "ร่าง", value: "DRAFT" },
+  { label: "รออนุมัติ", value: "IN_PROCESS" },
+  { label: "สำเร็จ", value: "SUCCESS" },
+];
 
 /** Which of the three documents this page lists; set on the route. */
-const kind = computed(() => route.meta.docKind)
+const kind = computed(() => route.meta.docKind);
 
 // What each list is for, in the words of the job it belongs to.
 const SUBTITLES = {
-  receipt: 'เอกสารรับสินค้าเข้าคลัง',
-  requisition: 'เอกสารเบิกสินค้าออกจากคลัง',
-  return: 'เอกสารคืนสินค้ากลับเข้าคลัง',
-}
+  receipt: "เอกสารรับสินค้าเข้าคลัง",
+  requisition: "เอกสารเบิกสินค้าออกจากคลัง",
+  return: "เอกสารคืนสินค้ากลับเข้าคลัง",
+};
 
 const config = computed(() => ({
   ...DOC_KINDS[kind.value],
   listSubtitle: SUBTITLES[kind.value],
-}))
+}));
 
-const itemName = ref('')
-const userName = ref('')
-const filterStatus = ref(null)
-const filterWarehouse = ref(null)
-const page = ref(1)
-const limit = ref(15)
+const itemName = ref("");
+const userName = ref("");
+const filterStatus = ref(null);
+const filterWarehouse = ref(null);
+const page = ref(1);
+const limit = ref(15);
 
-const list = computed(() => docStore.lists[kind.value])
+const list = computed(() => docStore.lists[kind.value]);
 const hasFilters = computed(
   () => !!itemName.value || !!userName.value || !!filterStatus.value || !!filterWarehouse.value,
-)
+);
 
 function warehouseName(id) {
-  return masterStore.getWarehouseById(id)?.name || `คลัง #${id}`
+  return masterStore.getWarehouseById(id)?.name || `คลัง #${id}`;
 }
 
 async function load() {
@@ -256,67 +241,67 @@ async function load() {
       itemName: itemName.value || undefined,
       page: page.value,
       limit: limit.value,
-    })
+    });
   } catch (error) {
     toast.add({
-      severity: 'error',
-      summary: 'โหลดรายการเอกสารไม่สำเร็จ',
+      severity: "error",
+      summary: "โหลดรายการเอกสารไม่สำเร็จ",
       detail: error.response?.data?.message || error.message,
       life: 5000,
-    })
+    });
   }
 }
 
 function reload() {
-  page.value = 1
-  load()
+  page.value = 1;
+  load();
 }
 
 function resetFilters() {
-  itemName.value = ''
-  userName.value = ''
-  filterStatus.value = null
-  filterWarehouse.value = null
-  reload()
+  itemName.value = "";
+  userName.value = "";
+  filterStatus.value = null;
+  filterWarehouse.value = null;
+  reload();
 }
 
 function onPage(event) {
-  page.value = event.page + 1
-  limit.value = event.rows
-  load()
+  page.value = event.page + 1;
+  limit.value = event.rows;
+  load();
 }
 
-watchDebounced([itemName, userName], reload, { debounce: 350 })
-watch([filterStatus, filterWarehouse], reload)
+watchDebounced([itemName, userName], reload, { debounce: 350 });
+watch([filterStatus, filterWarehouse], reload);
 
 // The three list routes share this component, so moving between them reuses the
 // instance: only the route's `docKind` changes.
 watch(kind, () => {
-  resetFilters()
-})
+  resetFilters();
+});
 
 function reportError(error, summary) {
-  const raw = error.response?.data?.message
+  const raw = error.response?.data?.message;
   toast.add({
-    severity: 'error',
+    severity: "error",
     summary,
-    detail: Array.isArray(raw) ? raw.join(', ') : raw || error.message,
+    detail: Array.isArray(raw) ? raw.join(", ") : raw || error.message,
     life: 6000,
-  })
+  });
 }
 
 async function changeStatus(doc, status) {
   try {
-    await docStore.update(kind.value, doc.id, { status })
+    await docStore.update(kind.value, doc.id, { status });
     toast.add({
-      severity: 'success',
-      summary: status === 'SUCCESS' ? `${config.value.effect}แล้ว` : 'ส่งอนุมัติแล้ว',
+      severity: "success",
+      summary: status === "SUCCESS" ? `${config.value.effect}แล้ว` : "ส่งอนุมัติแล้ว",
       detail: doc.docNo,
       life: 4000,
-    })
-    load()
+    });
+    load();
   } catch (error) {
-    reportError(error, 'ดำเนินการไม่สำเร็จ')
+    reportError(error, "ดำเนินการไม่สำเร็จ");
   }
 }
 
@@ -324,39 +309,39 @@ function confirmPost(doc) {
   confirm.require({
     header: `ยืนยัน${config.value.effect}`,
     message: `ระบบจะ${config.value.effect}ตามเอกสาร ${doc.docNo} ทันที เมื่อทำแล้วจะแก้ไขหรือยกเลิกไม่ได้`,
-    icon: 'pi pi-exclamation-triangle',
+    icon: "pi pi-exclamation-triangle",
     acceptLabel: `ยืนยัน ${config.value.effect}`,
-    rejectLabel: 'ยกเลิก',
-    acceptClass: 'btn-primary',
-    accept: () => changeStatus(doc, 'SUCCESS'),
-  })
+    rejectLabel: "ยกเลิก",
+    acceptClass: "btn-primary",
+    accept: () => changeStatus(doc, "SUCCESS"),
+  });
 }
 
 function confirmCancel(doc) {
   confirm.require({
-    header: 'ยกเลิกเอกสาร',
-    icon: 'pi pi-times-circle',
+    header: "ยกเลิกเอกสาร",
+    icon: "pi pi-times-circle",
     message: `ต้องการยกเลิกเอกสาร ${doc.docNo} หรือไม่? เลขที่เอกสารนี้จะถูกปล่อยให้ใช้ซ้ำได้`,
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'ยกเลิกเอกสาร',
-    rejectLabel: 'ไม่',
-    acceptClass: 'p-button-danger',
+    icon: "pi pi-exclamation-triangle",
+    acceptLabel: "ยกเลิกเอกสาร",
+    rejectLabel: "ไม่",
+    acceptClass: "p-button-danger",
     accept: async () => {
       try {
-        await docStore.cancel(kind.value, doc.id)
-        toast.add({ severity: 'success', summary: 'ยกเลิกเอกสารแล้ว', detail: doc.docNo, life: 4000 })
-        load()
+        await docStore.cancel(kind.value, doc.id);
+        toast.add({ severity: "success", summary: "ยกเลิกเอกสารแล้ว", detail: doc.docNo, life: 4000 });
+        load();
       } catch (error) {
-        reportError(error, 'ยกเลิกไม่สำเร็จ')
+        reportError(error, "ยกเลิกไม่สำเร็จ");
       }
     },
-  })
+  });
 }
 
 onMounted(() => {
-  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
-  load()
-})
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses();
+  load();
+});
 </script>
 
 <style scoped>

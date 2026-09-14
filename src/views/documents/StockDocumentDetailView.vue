@@ -6,9 +6,7 @@
           {{ config.label }}
           <span v-if="doc" class="mono doc-no">{{ doc.docNo }}</span>
         </div>
-        <div class="page-subtitle">
-          รายละเอียดเอกสาร — การอนุมัติขั้นสุดท้ายจะ{{ config.effect }}ทันที
-        </div>
+        <div class="page-subtitle">รายละเอียดเอกสาร — การอนุมัติขั้นสุดท้ายจะ{{ config.effect }}ทันที</div>
       </div>
       <div class="header-actions">
         <RouterLink :to="`/documents/${kind}`">
@@ -57,11 +55,7 @@
     <div v-else-if="doc" class="page-card">
       <!-- Where the document is in its lifecycle -->
       <div class="status-track">
-        <div
-          v-for="step in statusSteps"
-          :key="step.value"
-          :class="['track-step', trackStepClass(step.value)]"
-        >
+        <div v-for="step in statusSteps" :key="step.value" :class="['track-step', trackStepClass(step.value)]">
           <i :class="step.icon" />
           <span>{{ step.label }}</span>
         </div>
@@ -80,9 +74,7 @@
         </div>
         <div class="doc-info-item">
           <span class="di-label">ประเภท</span>
-          <span :class="['status-badge', config.badgeClass]">
-            <i :class="config.icon" /> {{ config.shortLabel }}
-          </span>
+          <span :class="['status-badge', config.badgeClass]"> <i :class="config.icon" /> {{ config.shortLabel }} </span>
         </div>
         <div class="doc-info-item">
           <span class="di-label">สถานะ</span>
@@ -95,7 +87,7 @@
           <span class="di-val">{{ warehouseName(doc.warehouseId) }}</span>
         </div>
         <div class="doc-info-item">
-          <span class="di-label">วันที่เอกสาร</span>
+          <span class="di-label">{{ config.dateLabel }}</span>
           <span class="di-val">{{ formatThaiDate(doc.docDate) }}</span>
         </div>
         <div v-if="kind === 'receipt'" class="doc-info-item">
@@ -108,7 +100,7 @@
         </div>
         <div class="doc-info-item form-full">
           <span class="di-label">หมายเหตุ</span>
-          <span class="di-val">{{ doc.remark || '—' }}</span>
+          <span class="di-val">{{ doc.remark || "—" }}</span>
         </div>
       </div>
 
@@ -139,9 +131,7 @@
           <template #body="{ data }">
             <template v-if="data.lot">
               <div class="mono lot-no">{{ data.lot.lotNo }}</div>
-              <div v-if="data.lot.expiryDate" class="prod-sub">
-                หมดอายุ {{ formatThaiDate(data.lot.expiryDate) }}
-              </div>
+              <div v-if="data.lot.expiryDate" class="prod-sub">หมดอายุ {{ formatThaiDate(data.lot.expiryDate) }}</div>
             </template>
             <!-- A draft receipt has a typed batch number but no lot row yet. -->
             <template v-else-if="data.lotNo">
@@ -161,7 +151,7 @@
 
         <Column v-if="kind === 'receipt'" header="ต้นทุน/หน่วย" style="width: 130px">
           <template #body="{ data }">
-            <span class="muted">{{ data.unitCost != null ? formatQty(data.unitCost) : '—' }}</span>
+            <span class="muted">{{ data.unitCost != null ? formatQty(data.unitCost) : "—" }}</span>
           </template>
         </Column>
       </DataTable>
@@ -178,104 +168,98 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
-import { useMasterStore } from '@/stores/master'
-import {
-  DOC_KINDS,
-  useStockDocumentStore,
-  statusClass,
-  statusIcon,
-  statusLabel,
-} from '@/stores/stockDocuments'
-import { formatThaiDate, formatThaiDateTime } from '@/utils/date'
-import Button from 'primevue/button'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
+import { useMasterStore } from "@/stores/master";
+import { DOC_KINDS, statusClass, statusIcon, statusLabel, useStockDocumentStore } from "@/stores/stockDocuments";
+import { formatThaiDate, formatThaiDateTime } from "@/utils/date";
+import Button from "primevue/button";
+import Column from "primevue/column";
+import DataTable from "primevue/datatable";
+import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
+import { computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 
-const route = useRoute()
-const toast = useToast()
-const confirm = useConfirm()
-const masterStore = useMasterStore()
-const docStore = useStockDocumentStore()
+const route = useRoute();
+const toast = useToast();
+const confirm = useConfirm();
+const masterStore = useMasterStore();
+const docStore = useStockDocumentStore();
 
 /** Which of the three documents this page is showing; set on the route. */
-const kind = computed(() => route.meta.docKind)
+const kind = computed(() => route.meta.docKind);
 
 // The final step reads differently per document, because what it does differs.
 const POST_LABELS = {
-  receipt: 'รับเข้าและเพิ่มสต๊อก',
-  requisition: 'จ่ายของ (ตัดสต๊อก)',
-  return: 'รับคืนเข้าสต๊อก',
-}
-const DONE_LABELS = { receipt: 'รับเข้าแล้ว', requisition: 'จ่ายแล้ว', return: 'คืนแล้ว' }
+  receipt: "รับเข้าและเพิ่มสต๊อก",
+  requisition: "จ่ายของ (ตัดสต๊อก)",
+  return: "รับคืนเข้าสต๊อก",
+};
+const DONE_LABELS = { receipt: "รับเข้าแล้ว", requisition: "จ่ายแล้ว", return: "คืนแล้ว" };
 
 const config = computed(() => ({
   ...DOC_KINDS[kind.value],
   postLabel: POST_LABELS[kind.value],
-}))
+}));
 
 const statusSteps = computed(() => [
-  { value: 'DRAFT', label: 'ร่าง', icon: 'pi pi-file-edit' },
-  { value: 'IN_PROCESS', label: 'รออนุมัติ', icon: 'pi pi-clock' },
-  { value: 'SUCCESS', label: DONE_LABELS[kind.value], icon: 'pi pi-check-circle' },
-])
+  { value: "DRAFT", label: "ร่าง", icon: "pi pi-file-edit" },
+  { value: "IN_PROCESS", label: "รออนุมัติ", icon: "pi pi-clock" },
+  { value: "SUCCESS", label: DONE_LABELS[kind.value], icon: "pi pi-check-circle" },
+]);
 
-const doc = computed(() => docStore.current)
-const canCancel = computed(() => doc.value?.status === 'DRAFT' || doc.value?.status === 'IN_PROCESS')
+const doc = computed(() => docStore.current);
+const canCancel = computed(() => doc.value?.status === "DRAFT" || doc.value?.status === "IN_PROCESS");
 
 function trackStepClass(step) {
-  if (doc.value?.status === 'CANCELED') return 'muted-step'
-  const order = ['DRAFT', 'IN_PROCESS', 'SUCCESS']
-  const current = order.indexOf(doc.value?.status)
-  const index = order.indexOf(step)
-  if (index < current) return 'done'
-  if (index === current) return 'current'
-  return ''
+  if (doc.value?.status === "CANCELED") return "muted-step";
+  const order = ["DRAFT", "IN_PROCESS", "SUCCESS"];
+  const current = order.indexOf(doc.value?.status);
+  const index = order.indexOf(step);
+  if (index < current) return "done";
+  if (index === current) return "current";
+  return "";
 }
 
 function productName(id) {
-  return masterStore.getProductById(id)?.name || '(ไม่พบสินค้า)'
+  return masterStore.getProductById(id)?.name || "(ไม่พบสินค้า)";
 }
 function productSku(id) {
-  return masterStore.getProductById(id)?.sku || '-'
+  return masterStore.getProductById(id)?.sku || "-";
 }
 function unitCodeOf(productId) {
-  return masterStore.getUnitById(masterStore.getProductById(productId)?.unitId)?.code || ''
+  return masterStore.getUnitById(masterStore.getProductById(productId)?.unitId)?.code || "";
 }
 function warehouseName(id) {
-  return masterStore.getWarehouseById(id)?.name || `คลัง #${id}`
+  return masterStore.getWarehouseById(id)?.name || `คลัง #${id}`;
 }
 function supplierName(id) {
-  return id ? masterStore.getSupplierById(id)?.name || `Supplier #${id}` : '—'
+  return id ? masterStore.getSupplierById(id)?.name || `Supplier #${id}` : "—";
 }
 function formatQty(value) {
-  return Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 4 })
+  return Number(value || 0).toLocaleString("th-TH", { maximumFractionDigits: 4 });
 }
 
 function reportError(error, summary) {
-  const raw = error.response?.data?.message
+  const raw = error.response?.data?.message;
   toast.add({
-    severity: 'error',
+    severity: "error",
     summary,
-    detail: Array.isArray(raw) ? raw.join(', ') : raw || error.message,
+    detail: Array.isArray(raw) ? raw.join(", ") : raw || error.message,
     life: 6000,
-  })
+  });
 }
 
 async function changeStatus(status) {
   try {
-    await docStore.update(kind.value, doc.value.id, { status })
+    await docStore.update(kind.value, doc.value.id, { status });
     toast.add({
-      severity: 'success',
-      summary: status === 'SUCCESS' ? `${config.value.effect}เรียบร้อยแล้ว` : 'ส่งอนุมัติแล้ว',
+      severity: "success",
+      summary: status === "SUCCESS" ? `${config.value.effect}เรียบร้อยแล้ว` : "ส่งอนุมัติแล้ว",
       detail: doc.value.docNo,
       life: 4000,
-    })
+    });
   } catch (error) {
-    reportError(error, 'ดำเนินการไม่สำเร็จ')
+    reportError(error, "ดำเนินการไม่สำเร็จ");
   }
 }
 
@@ -283,54 +267,54 @@ function confirmPost() {
   confirm.require({
     header: `ยืนยัน${config.value.effect}`,
     message: `ระบบจะ${config.value.effect}ตามรายการในเอกสารนี้ทันที เมื่อทำแล้วจะแก้ไขหรือยกเลิกไม่ได้ ต้องการดำเนินการต่อหรือไม่?`,
-    icon: 'pi pi-exclamation-triangle',
+    icon: "pi pi-exclamation-triangle",
     acceptLabel: `ยืนยัน ${config.value.effect}`,
-    rejectLabel: 'ยกเลิก',
-    acceptClass: 'btn-primary',
-    accept: () => changeStatus('SUCCESS'),
-  })
+    rejectLabel: "ยกเลิก",
+    acceptClass: "btn-primary",
+    accept: () => changeStatus("SUCCESS"),
+  });
 }
 
 function confirmCancel() {
   confirm.require({
-    header: 'ยกเลิกเอกสาร',
-    icon: 'pi pi-times-circle',
+    header: "ยกเลิกเอกสาร",
+    icon: "pi pi-times-circle",
     message: `ต้องการยกเลิกเอกสาร ${doc.value.docNo} หรือไม่? เลขที่เอกสารนี้จะถูกปล่อยให้ใช้ซ้ำได้`,
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'ยกเลิกเอกสาร',
-    rejectLabel: 'ไม่',
-    acceptClass: 'p-button-danger',
+    icon: "pi pi-exclamation-triangle",
+    acceptLabel: "ยกเลิกเอกสาร",
+    rejectLabel: "ไม่",
+    acceptClass: "p-button-danger",
     accept: async () => {
       try {
-        await docStore.cancel(kind.value, doc.value.id)
-        toast.add({ severity: 'success', summary: 'ยกเลิกเอกสารแล้ว', life: 4000 })
+        await docStore.cancel(kind.value, doc.value.id);
+        toast.add({ severity: "success", summary: "ยกเลิกเอกสารแล้ว", life: 4000 });
       } catch (error) {
-        reportError(error, 'ยกเลิกไม่สำเร็จ')
+        reportError(error, "ยกเลิกไม่สำเร็จ");
       }
     },
-  })
+  });
 }
 
 async function load() {
   try {
-    await docStore.fetchOne(kind.value, route.params.id)
+    await docStore.fetchOne(kind.value, route.params.id);
   } catch (error) {
-    docStore.current = null
-    reportError(error, 'โหลดเอกสารไม่สำเร็จ')
+    docStore.current = null;
+    reportError(error, "โหลดเอกสารไม่สำเร็จ");
   }
 }
 
 onMounted(() => {
-  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
-  if (!masterStore.products.length) masterStore.fetchProducts()
-  if (!masterStore.units.length) masterStore.fetchUnits()
-  if (!masterStore.suppliers.length) masterStore.fetchSuppliers()
-  load()
-})
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses();
+  if (!masterStore.products.length) masterStore.fetchProducts();
+  if (!masterStore.units.length) masterStore.fetchUnits();
+  if (!masterStore.suppliers.length) masterStore.fetchSuppliers();
+  load();
+});
 
 // The three detail routes share this component, so navigating between them
 // reuses the instance and only the params change.
-watch(() => [route.params.id, route.meta.docKind], load)
+watch(() => [route.params.id, route.meta.docKind], load);
 </script>
 
 <style scoped>

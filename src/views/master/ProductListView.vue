@@ -80,6 +80,14 @@
           <template #body="{ data }">{{ getUnitAbbr(data.unitId) }}</template>
         </Column>
         <Column field="productType" header="Product Type" style="width: 140px;" />
+        <Column header="น้ำหนัก/หน่วย" style="width: 130px; text-align: center;" headerClass="th-center">
+          <template #body="{ data }">
+            <span v-if="data.weightPerUnit != null">
+              {{ Number(data.weightPerUnit).toLocaleString() }} {{ getUnitAbbr(data.subUnitId) }}
+            </span>
+            <span v-else class="muted">—</span>
+          </template>
+        </Column>
         <Column header="Min Stock" style="width: 100px; text-align: right;">
           <template #body="{ data }">{{ data.minStock }}</template>
         </Column>
@@ -282,6 +290,10 @@ function confirmDelete(product) {
   color: var(--gl-red);
   cursor: help;
 }
+:deep(.th-center) .p-datatable-column-header-content {
+  justify-content: center;
+}
+
 /* Dimmed, not hidden: the row is history, and history should not compete with
    the products someone can actually act on. */
 :deep(.row-deleted) {

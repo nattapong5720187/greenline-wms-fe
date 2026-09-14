@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">
-          {{ isEditing ? 'แก้ไขใบรับเข้า' : 'สร้างใบรับเข้า (Goods Receipt)' }}
+          {{ isEditing ? "แก้ไขใบรับเข้า" : "สร้างใบรับเข้า (Goods Receipt)" }}
           <span v-if="isEditing && docNo" class="mono doc-no">{{ docNo }}</span>
         </div>
         <div class="page-subtitle">
@@ -15,9 +15,7 @@
       </RouterLink>
     </div>
 
-    <div v-if="loadingDoc" class="page-card loading-card">
-      <i class="pi pi-spin pi-spinner" /> กำลังโหลดเอกสาร...
-    </div>
+    <div v-if="loadingDoc" class="page-card loading-card"><i class="pi pi-spin pi-spinner" /> กำลังโหลดเอกสาร...</div>
 
     <div v-else class="page-card">
       <!-- ── Header ─────────────────────────────────────────── -->
@@ -36,7 +34,7 @@
           />
         </div>
         <div>
-          <label class="field-label">วันที่เอกสาร <span class="req">*</span></label>
+          <label class="field-label">วันที่รับเข้า <span class="req">*</span></label>
           <Calendar v-model="form.docDate" dateFormat="dd/mm/yy" showIcon class="w-full" />
         </div>
         <div>
@@ -126,13 +124,7 @@
 
         <Column header="ต้นทุน/หน่วย" style="width: 140px">
           <template #body="{ data }">
-            <InputNumber
-              v-model="data.unitCost"
-              :min="0"
-              :maxFractionDigits="4"
-              placeholder="—"
-              class="w-full"
-            />
+            <InputNumber v-model="data.unitCost" :min="0" :maxFractionDigits="4" placeholder="—" class="w-full" />
           </template>
         </Column>
 
@@ -183,7 +175,9 @@
       </div>
 
       <div v-if="form.items.length" class="summary-bar">
-        <span>รวม <strong>{{ form.items.length }}</strong> รายการ</span>
+        <span
+          >รวม <strong>{{ form.items.length }}</strong> รายการ</span
+        >
         <span v-if="totalCost > 0">
           มูลค่ารวมโดยประมาณ <strong>{{ formatNumber(totalCost) }}</strong>
         </span>
@@ -192,13 +186,7 @@
       <!-- ── Actions ────────────────────────────────────────── -->
       <div class="form-actions">
         <RouterLink :to="backTo"><Button label="ยกเลิก" outlined /></RouterLink>
-        <Button
-          label="บันทึกร่าง"
-          icon="pi pi-save"
-          outlined
-          :loading="saving"
-          @click="saveDraft"
-        />
+        <Button label="บันทึกร่าง" icon="pi pi-save" outlined :loading="saving" @click="saveDraft" />
         <Button label="ส่งอนุมัติ" icon="pi pi-send" outlined :loading="saving" @click="submit" />
         <Button
           label="รับเข้าและเพิ่มสต๊อก"
@@ -213,87 +201,83 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useToast } from 'primevue/usetoast'
-import { useMasterStore } from '@/stores/master'
-import { useStockDocumentStore, statusLabel } from '@/stores/stockDocuments'
-import { useStockDocumentForm } from '@/composables/useStockDocumentForm'
-import { toIsoDate } from '@/utils/date'
-import Button from 'primevue/button'
-import Dropdown from 'primevue/dropdown'
-import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Textarea from 'primevue/textarea'
-import Calendar from 'primevue/calendar'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
+import { useStockDocumentForm } from "@/composables/useStockDocumentForm";
+import { useMasterStore } from "@/stores/master";
+import { statusLabel, useStockDocumentStore } from "@/stores/stockDocuments";
+import { toIsoDate } from "@/utils/date";
+import Button from "primevue/button";
+import Calendar from "primevue/calendar";
+import Column from "primevue/column";
+import DataTable from "primevue/datatable";
+import Dropdown from "primevue/dropdown";
+import InputNumber from "primevue/inputnumber";
+import InputText from "primevue/inputtext";
+import Textarea from "primevue/textarea";
+import { useToast } from "primevue/usetoast";
+import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
-const route = useRoute()
-const router = useRouter()
-const toast = useToast()
-const masterStore = useMasterStore()
-const docStore = useStockDocumentStore()
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const masterStore = useMasterStore();
+const docStore = useStockDocumentStore();
 
 // With an id in the route the page edits that draft; without one it creates.
-const documentId = computed(() => (route.params.id ? Number(route.params.id) : null))
-const docNo = ref('')
-const loadingDoc = ref(false)
+const documentId = computed(() => (route.params.id ? Number(route.params.id) : null));
+const docNo = ref("");
+const loadingDoc = ref(false);
 
-const backTo = computed(() =>
-  documentId.value ? `/documents/receipt/${documentId.value}` : '/documents/receipt',
-)
+const backTo = computed(() => (documentId.value ? `/documents/receipt/${documentId.value}` : "/documents/receipt"));
 
 const form = ref({
   warehouseId: null,
   supplierId: null,
   docDate: new Date(),
-  remark: '',
+  remark: "",
   items: [],
-})
+});
 
 // Bound to the picker only long enough to add a row, then cleared so the same
 // product can be picked twice (two batches of one product is normal here).
-const productToAdd = ref(null)
+const productToAdd = ref(null);
 
-const totalCost = computed(() =>
-  form.value.items.reduce((sum, i) => sum + (i.quantity || 0) * (i.unitCost || 0), 0),
-)
+const totalCost = computed(() => form.value.items.reduce((sum, i) => sum + (i.quantity || 0) * (i.unitCost || 0), 0));
 
 function productOf(item) {
-  return masterStore.getProductById(item.productId) || { name: '(ไม่พบสินค้า)', sku: '-', hasLot: false }
+  return masterStore.getProductById(item.productId) || { name: "(ไม่พบสินค้า)", sku: "-", hasLot: false };
 }
 
 function unitOf(item) {
-  return masterStore.getUnitById(productOf(item).unitId)?.code || ''
+  return masterStore.getUnitById(productOf(item).unitId)?.code || "";
 }
 
 function addItem() {
-  if (!productToAdd.value) return
+  if (!productToAdd.value) return;
   form.value.items.push({
     productId: productToAdd.value,
     quantity: null,
     unitCost: null,
-    lotNo: '',
+    lotNo: "",
     expiryDate: null,
-  })
-  productToAdd.value = null
+  });
+  productToAdd.value = null;
 }
 
 function formatNumber(value) {
-  return Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 })
+  return Number(value || 0).toLocaleString("th-TH", { maximumFractionDigits: 2 });
 }
 
 function validate() {
-  if (!form.value.warehouseId) return 'กรุณาเลือกคลังที่รับเข้า'
-  if (!form.value.docDate) return 'กรุณาระบุวันที่เอกสาร'
-  if (!form.value.items.length) return 'กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ'
+  if (!form.value.warehouseId) return "กรุณาเลือกคลังที่รับเข้า";
+  if (!form.value.docDate) return "กรุณาระบุวันที่รับเข้า";
+  if (!form.value.items.length) return "กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ";
   for (const [index, item] of form.value.items.entries()) {
     if (!(item.quantity > 0)) {
-      return `รายการที่ ${index + 1} (${productOf(item).name}) ต้องระบุจำนวนมากกว่า 0`
+      return `รายการที่ ${index + 1} (${productOf(item).name}) ต้องระบุจำนวนมากกว่า 0`;
     }
   }
-  return null
+  return null;
 }
 
 function buildPayload() {
@@ -309,16 +293,16 @@ function buildPayload() {
       // Batch details only mean something for a lot-tracked product; posting
       // ignores them otherwise, so do not send noise.
       lotNo: productOf(item).hasLot && item.lotNo ? item.lotNo : undefined,
-      expiryDate:
-        productOf(item).hasLot && item.expiryDate ? toIsoDate(item.expiryDate) : undefined,
+      expiryDate: productOf(item).hasLot && item.expiryDate ? toIsoDate(item.expiryDate) : undefined,
     })),
-  }
+  };
 }
 
-const { saving, isEditing, saveDraft, submit, confirmAndPost } = useStockDocumentForm(
-  'receipt',
-  { validate, buildPayload, documentId },
-)
+const { saving, isEditing, saveDraft, submit, confirmAndPost } = useStockDocumentForm("receipt", {
+  validate,
+  buildPayload,
+  documentId,
+});
 
 /**
  * Fills the form from the draft named in the route. Only a `DRAFT` accepts
@@ -327,55 +311,55 @@ const { saving, isEditing, saveDraft, submit, confirmAndPost } = useStockDocumen
  * save would fail.
  */
 async function loadDraft() {
-  if (!documentId.value) return
-  loadingDoc.value = true
+  if (!documentId.value) return;
+  loadingDoc.value = true;
   try {
-    const doc = await docStore.fetchOne('receipt', documentId.value)
-    if (doc.status !== 'DRAFT') {
+    const doc = await docStore.fetchOne("receipt", documentId.value);
+    if (doc.status !== "DRAFT") {
       toast.add({
-        severity: 'warn',
-        summary: 'เอกสารนี้แก้ไขไม่ได้แล้ว',
+        severity: "warn",
+        summary: "เอกสารนี้แก้ไขไม่ได้แล้ว",
         detail: `สถานะปัจจุบันคือ "${statusLabel(doc.status)}"`,
         life: 5000,
-      })
-      router.replace(`/documents/receipt/${documentId.value}`)
-      return
+      });
+      router.replace(`/documents/receipt/${documentId.value}`);
+      return;
     }
-    docNo.value = doc.docNo
+    docNo.value = doc.docNo;
     form.value = {
       warehouseId: doc.warehouseId,
       supplierId: doc.supplierId ?? null,
       docDate: new Date(doc.docDate),
-      remark: doc.remark || '',
+      remark: doc.remark || "",
       items: (doc.items || []).map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         unitCost: item.unitCost,
         // The typed batch number, not the lot posting may have created.
-        lotNo: item.lotNo || '',
+        lotNo: item.lotNo || "",
         expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
       })),
-    }
+    };
   } catch (error) {
     toast.add({
-      severity: 'error',
-      summary: 'โหลดเอกสารไม่สำเร็จ',
+      severity: "error",
+      summary: "โหลดเอกสารไม่สำเร็จ",
       detail: error.response?.data?.message || error.message,
       life: 5000,
-    })
-    router.replace('/documents/receipt')
+    });
+    router.replace("/documents/receipt");
   } finally {
-    loadingDoc.value = false
+    loadingDoc.value = false;
   }
 }
 
 onMounted(() => {
-  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
-  if (!masterStore.products.length) masterStore.fetchProducts()
-  if (!masterStore.units.length) masterStore.fetchUnits()
-  if (!masterStore.suppliers.length) masterStore.fetchSuppliers()
-  loadDraft()
-})
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses();
+  if (!masterStore.products.length) masterStore.fetchProducts();
+  if (!masterStore.units.length) masterStore.fetchUnits();
+  if (!masterStore.suppliers.length) masterStore.fetchSuppliers();
+  loadDraft();
+});
 </script>
 
 <style scoped>

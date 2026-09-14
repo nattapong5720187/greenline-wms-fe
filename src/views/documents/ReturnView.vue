@@ -35,7 +35,7 @@
           />
         </div>
         <div>
-          <label class="field-label">วันที่เอกสาร <span class="req">*</span></label>
+          <label class="field-label">วันที่คืนสินค้า <span class="req">*</span></label>
           <Calendar v-model="form.docDate" dateFormat="dd/mm/yy" showIcon class="w-full" />
         </div>
         <div>
@@ -274,7 +274,7 @@ function formatQty(value) {
 
 function validate() {
   if (!form.value.warehouseId) return 'กรุณาเลือกคลังที่รับคืน'
-  if (!form.value.docDate) return 'กรุณาระบุวันที่เอกสาร'
+  if (!form.value.docDate) return 'กรุณาระบุวันที่คืนสินค้า'
   if (!form.value.items.length) return 'กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ'
   for (const [index, item] of form.value.items.entries()) {
     const label = `รายการที่ ${index + 1} (${productOf(item).name})`

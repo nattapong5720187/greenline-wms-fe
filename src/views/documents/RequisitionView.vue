@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">
-          {{ isEditing ? 'แก้ไขใบเบิก-จ่าย' : 'สร้างใบเบิก-จ่าย (Requisition)' }}
+          {{ isEditing ? "แก้ไขใบเบิก-จ่าย" : "สร้างใบเบิก-จ่าย (Requisition)" }}
           <span v-if="isEditing && docNo" class="mono doc-no">{{ docNo }}</span>
         </div>
         <div class="page-subtitle">
@@ -15,9 +15,7 @@
       </RouterLink>
     </div>
 
-    <div v-if="loadingDoc" class="page-card loading-card">
-      <i class="pi pi-spin pi-spinner" /> กำลังโหลดเอกสาร...
-    </div>
+    <div v-if="loadingDoc" class="page-card loading-card"><i class="pi pi-spin pi-spinner" /> กำลังโหลดเอกสาร...</div>
 
     <div v-else class="page-card">
       <div class="form-grid-3">
@@ -35,17 +33,12 @@
           />
         </div>
         <div>
-          <label class="field-label">วันที่เอกสาร <span class="req">*</span></label>
+          <label class="field-label">วันที่ขอเบิก <span class="req">*</span></label>
           <Calendar v-model="form.docDate" dateFormat="dd/mm/yy" showIcon class="w-full" />
         </div>
         <div>
           <label class="field-label">หมายเหตุ / วัตถุประสงค์</label>
-          <InputText
-            v-model="form.remark"
-            class="w-full"
-            :maxlength="500"
-            placeholder="เช่น เบิกสำหรับ Batch #001"
-          />
+          <InputText v-model="form.remark" class="w-full" :maxlength="500" placeholder="เช่น เบิกสำหรับ Batch #001" />
         </div>
       </div>
 
@@ -178,66 +171,64 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useToast } from 'primevue/usetoast'
-import { useMasterStore } from '@/stores/master'
-import { useStockStore } from '@/stores/stock'
-import { useStockDocumentStore, statusLabel } from '@/stores/stockDocuments'
-import { useStockDocumentForm } from '@/composables/useStockDocumentForm'
-import { toIsoDate, formatThaiDate } from '@/utils/date'
-import Button from 'primevue/button'
-import Dropdown from 'primevue/dropdown'
-import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Calendar from 'primevue/calendar'
-import Message from 'primevue/message'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
+import { useStockDocumentForm } from "@/composables/useStockDocumentForm";
+import { useMasterStore } from "@/stores/master";
+import { useStockStore } from "@/stores/stock";
+import { statusLabel, useStockDocumentStore } from "@/stores/stockDocuments";
+import { formatThaiDate, toIsoDate } from "@/utils/date";
+import Button from "primevue/button";
+import Calendar from "primevue/calendar";
+import Column from "primevue/column";
+import DataTable from "primevue/datatable";
+import Dropdown from "primevue/dropdown";
+import InputNumber from "primevue/inputnumber";
+import InputText from "primevue/inputtext";
+import Message from "primevue/message";
+import { useToast } from "primevue/usetoast";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
-const route = useRoute()
-const router = useRouter()
-const toast = useToast()
-const masterStore = useMasterStore()
-const stockStore = useStockStore()
-const docStore = useStockDocumentStore()
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const masterStore = useMasterStore();
+const stockStore = useStockStore();
+const docStore = useStockDocumentStore();
 
 // With an id in the route the page edits that draft; without one it creates.
-const documentId = computed(() => (route.params.id ? Number(route.params.id) : null))
-const docNo = ref('')
-const loadingDoc = ref(false)
+const documentId = computed(() => (route.params.id ? Number(route.params.id) : null));
+const docNo = ref("");
+const loadingDoc = ref(false);
 
 const backTo = computed(() =>
-  documentId.value ? `/documents/requisition/${documentId.value}` : '/documents/requisition',
-)
+  documentId.value ? `/documents/requisition/${documentId.value}` : "/documents/requisition",
+);
 
-const form = ref({ warehouseId: null, docDate: new Date(), remark: '', items: [] })
-const productToAdd = ref(null)
+const form = ref({ warehouseId: null, docDate: new Date(), remark: "", items: [] });
+const productToAdd = ref(null);
 // Batches on hand for each product in the chosen warehouse, keyed by product.
-const lotOptions = ref({})
-const lotsLoading = ref({})
+const lotOptions = ref({});
+const lotsLoading = ref({});
 // Products with no lots still have one balance row per warehouse; the lot picker
 // cannot show it, so their on-hand figure is fetched separately.
-const nonLotBalances = ref({})
+const nonLotBalances = ref({});
 
 function productOf(item) {
-  return (
-    masterStore.getProductById(item.productId) || { name: '(ไม่พบสินค้า)', sku: '-', hasLot: false }
-  )
+  return masterStore.getProductById(item.productId) || { name: "(ไม่พบสินค้า)", sku: "-", hasLot: false };
 }
 function unitOf(item) {
-  return masterStore.getUnitById(productOf(item).unitId)?.code || ''
+  return masterStore.getUnitById(productOf(item).unitId)?.code || "";
 }
 function lotsFor(productId) {
-  return lotOptions.value[productId] || []
+  return lotOptions.value[productId] || [];
 }
 function lotPlaceholder(productId) {
-  if (lotsLoading.value[productId]) return 'กำลังโหลด...'
-  return lotsFor(productId).length ? 'เลือก Lot' : 'ไม่มี Lot คงเหลือ'
+  if (lotsLoading.value[productId]) return "กำลังโหลด...";
+  return lotsFor(productId).length ? "เลือก Lot" : "ไม่มี Lot คงเหลือ";
 }
 
 function formatQty(value) {
-  return Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 3 })
+  return Number(value || 0).toLocaleString("th-TH", { maximumFractionDigits: 3 });
 }
 
 /**
@@ -245,77 +236,77 @@ function formatQty(value) {
  * Balances arrive FIFO-ordered, so the first option is the one to use next.
  */
 async function loadLots(productId) {
-  if (!form.value.warehouseId || !productId) return
-  if (!masterStore.getProductById(productId)?.hasLot) return
-  lotsLoading.value = { ...lotsLoading.value, [productId]: true }
+  if (!form.value.warehouseId || !productId) return;
+  if (!masterStore.getProductById(productId)?.hasLot) return;
+  lotsLoading.value = { ...lotsLoading.value, [productId]: true };
   try {
-    const rows = await stockStore.fetchAvailableLots(productId, form.value.warehouseId)
+    const rows = await stockStore.fetchAvailableLots(productId, form.value.warehouseId);
     lotOptions.value = {
       ...lotOptions.value,
       [productId]: rows.map((row) => ({
         ...row,
         lotLabel: `${row.lotNo} (คงเหลือ ${formatQty(row.quantity)})`,
       })),
-    }
+    };
   } catch (error) {
     toast.add({
-      severity: 'error',
-      summary: 'โหลด Lot ไม่สำเร็จ',
+      severity: "error",
+      summary: "โหลด Lot ไม่สำเร็จ",
       detail: error.response?.data?.message || error.message,
       life: 5000,
-    })
+    });
   } finally {
-    lotsLoading.value = { ...lotsLoading.value, [productId]: false }
+    lotsLoading.value = { ...lotsLoading.value, [productId]: false };
   }
 }
 
 async function loadNonLotBalance(productId) {
-  if (!form.value.warehouseId) return
-  const onHand = await stockStore.fetchOnHand(productId, form.value.warehouseId)
-  nonLotBalances.value = { ...nonLotBalances.value, [productId]: onHand }
+  if (!form.value.warehouseId) return;
+  const onHand = await stockStore.fetchOnHand(productId, form.value.warehouseId);
+  nonLotBalances.value = { ...nonLotBalances.value, [productId]: onHand };
 }
 
 function loadAvailability(productId) {
-  if (masterStore.getProductById(productId)?.hasLot) loadLots(productId)
-  else loadNonLotBalance(productId)
+  if (masterStore.getProductById(productId)?.hasLot) loadLots(productId);
+  else loadNonLotBalance(productId);
 }
 
 function addItem() {
-  if (!productToAdd.value) return
-  const productId = productToAdd.value
-  form.value.items.push({ productId, quantity: null, lotId: null })
-  productToAdd.value = null
-  loadAvailability(productId)
+  if (!productToAdd.value) return;
+  const productId = productToAdd.value;
+  form.value.items.push({ productId, quantity: null, lotId: null });
+  productToAdd.value = null;
+  loadAvailability(productId);
 }
 
 /** Switching warehouse invalidates every lot choice — they are per warehouse. */
 function onWarehouseChange() {
-  lotOptions.value = {}
-  nonLotBalances.value = {}
+  lotOptions.value = {};
+  nonLotBalances.value = {};
   form.value.items.forEach((item) => {
-    item.lotId = null
-  })
-  form.value.items.forEach((item) => loadAvailability(item.productId))
+    item.lotId = null;
+  });
+  form.value.items.forEach((item) => loadAvailability(item.productId));
 }
 
 /** What the line may draw on: the chosen batch, or the product's whole balance. */
 function availableFor(item) {
-  if (!productOf(item).hasLot) return nonLotBalances.value[item.productId] ?? 0
-  const rows = lotsFor(item.productId)
-  if (!item.lotId) return rows.reduce((sum, row) => sum + row.quantity, 0)
-  return rows.find((row) => row.id === item.lotId)?.quantity || 0
+  if (!productOf(item).hasLot) return nonLotBalances.value[item.productId] ?? 0;
+  const rows = lotsFor(item.productId);
+  if (!item.lotId) return rows.reduce((sum, row) => sum + row.quantity, 0);
+  return rows.find((row) => row.id === item.lotId)?.quantity || 0;
 }
 
 /** Per-line validation, surfaced inline as the operator types. */
 function lineProblem(item) {
-  if (item.quantity == null) return null
-  if (!(item.quantity > 0)) return 'ต้องมากกว่า 0'
+  if (item.quantity == null) return null;
+  if (!(item.quantity > 0)) return "ต้องมากกว่า 0";
   // Until a batch is chosen, the ceiling shown is the product's whole balance,
   // which is not the ceiling that will actually apply — do not flag it yet.
-  if (productOf(item).hasLot && !item.lotId) return null
-  const available = availableFor(item)
-  if (item.quantity > available) return `เกินคงเหลือ (${formatQty(available)})`
-  return null
+  if (productOf(item).hasLot && !item.lotId) return null;
+  const available = availableFor(item);
+  if (item.quantity > available) return `เกินคงเหลือ (${formatQty(available)})`;
+  return null;
 }
 
 // A product added while its warehouse balance was still loading needs a retry
@@ -323,23 +314,23 @@ function lineProblem(item) {
 watch(
   () => form.value.warehouseId,
   (warehouseId) => {
-    if (warehouseId) form.value.items.forEach((item) => loadAvailability(item.productId))
+    if (warehouseId) form.value.items.forEach((item) => loadAvailability(item.productId));
   },
-)
+);
 
 function validate() {
-  if (!form.value.warehouseId) return 'กรุณาเลือกคลังที่เบิก'
-  if (!form.value.docDate) return 'กรุณาระบุวันที่เอกสาร'
-  if (!form.value.items.length) return 'กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ'
+  if (!form.value.warehouseId) return "กรุณาเลือกคลังที่เบิก";
+  if (!form.value.docDate) return "กรุณาระบุวันที่ขอเบิก";
+  if (!form.value.items.length) return "กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ";
   for (const [index, item] of form.value.items.entries()) {
-    const label = `รายการที่ ${index + 1} (${productOf(item).name})`
-    if (!(item.quantity > 0)) return `${label} ต้องระบุจำนวนมากกว่า 0`
+    const label = `รายการที่ ${index + 1} (${productOf(item).name})`;
+    if (!(item.quantity > 0)) return `${label} ต้องระบุจำนวนมากกว่า 0`;
     // An issue never creates a batch, so a lot-tracked line has to name one.
-    if (productOf(item).hasLot && !item.lotId) return `${label} ต้องเลือก Lot ที่จะเบิก`
-    const problem = lineProblem(item)
-    if (problem) return `${label} ${problem}`
+    if (productOf(item).hasLot && !item.lotId) return `${label} ต้องเลือก Lot ที่จะเบิก`;
+    const problem = lineProblem(item);
+    if (problem) return `${label} ${problem}`;
   }
-  return null
+  return null;
 }
 
 function buildPayload() {
@@ -352,13 +343,14 @@ function buildPayload() {
       quantity: item.quantity,
       lotId: item.lotId ?? undefined,
     })),
-  }
+  };
 }
 
-const { saving, isEditing, saveDraft, submit, confirmAndPost } = useStockDocumentForm(
-  'requisition',
-  { validate, buildPayload, documentId },
-)
+const { saving, isEditing, saveDraft, submit, confirmAndPost } = useStockDocumentForm("requisition", {
+  validate,
+  buildPayload,
+  documentId,
+});
 
 /**
  * Fills the form from the draft named in the route. Only a `DRAFT` accepts
@@ -367,53 +359,53 @@ const { saving, isEditing, saveDraft, submit, confirmAndPost } = useStockDocumen
  * save would fail.
  */
 async function loadDraft() {
-  if (!documentId.value) return
-  loadingDoc.value = true
+  if (!documentId.value) return;
+  loadingDoc.value = true;
   try {
-    const doc = await docStore.fetchOne('requisition', documentId.value)
-    if (doc.status !== 'DRAFT') {
+    const doc = await docStore.fetchOne("requisition", documentId.value);
+    if (doc.status !== "DRAFT") {
       toast.add({
-        severity: 'warn',
-        summary: 'เอกสารนี้แก้ไขไม่ได้แล้ว',
+        severity: "warn",
+        summary: "เอกสารนี้แก้ไขไม่ได้แล้ว",
         detail: `สถานะปัจจุบันคือ "${statusLabel(doc.status)}"`,
         life: 5000,
-      })
-      router.replace(`/documents/requisition/${documentId.value}`)
-      return
+      });
+      router.replace(`/documents/requisition/${documentId.value}`);
+      return;
     }
-    docNo.value = doc.docNo
+    docNo.value = doc.docNo;
     form.value = {
       warehouseId: doc.warehouseId,
       docDate: new Date(doc.docDate),
-      remark: doc.remark || '',
+      remark: doc.remark || "",
       items: (doc.items || []).map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         lotId: item.lotId ?? null,
       })),
-    }
+    };
     // The lot pickers are populated per product, and the saved lines already
     // name one — load their options so the selection has something to match.
-  form.value.items.forEach((item) => loadAvailability(item.productId))
+    form.value.items.forEach((item) => loadAvailability(item.productId));
   } catch (error) {
     toast.add({
-      severity: 'error',
-      summary: 'โหลดเอกสารไม่สำเร็จ',
+      severity: "error",
+      summary: "โหลดเอกสารไม่สำเร็จ",
       detail: error.response?.data?.message || error.message,
       life: 5000,
-    })
-    router.replace('/documents/requisition')
+    });
+    router.replace("/documents/requisition");
   } finally {
-    loadingDoc.value = false
+    loadingDoc.value = false;
   }
 }
 
 onMounted(() => {
-  if (!masterStore.warehouses.length) masterStore.fetchWarehouses()
-  if (!masterStore.products.length) masterStore.fetchProducts()
-  if (!masterStore.units.length) masterStore.fetchUnits()
-  loadDraft()
-})
+  if (!masterStore.warehouses.length) masterStore.fetchWarehouses();
+  if (!masterStore.products.length) masterStore.fetchProducts();
+  if (!masterStore.units.length) masterStore.fetchUnits();
+  loadDraft();
+});
 </script>
 
 <style scoped>
