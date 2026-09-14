@@ -127,11 +127,13 @@ const form = ref({
   productType: '', minStock: 0, hasLot: false,
 })
 
-// What InputNumber appends to the value, e.g. " KG". Blank until a sub unit is
+// What InputNumber appends to the value, e.g. " กิโลกรัม". The unit's `name` is
+// what the dropdown above shows, so the suffix reads back the same words the
+// user just picked rather than the English code. Blank until a sub unit is
 // chosen — an appended unit nobody picked would be a guess.
 const weightSuffix = computed(() => {
   const unit = masterStore.getUnitById(form.value.subUnitId)
-  return unit ? ` ${unit.code || unit.abbr || unit.name}` : ''
+  return unit ? ` ${unit.name || unit.code}` : ''
 })
 
 onMounted(async () => {
